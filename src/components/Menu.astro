@@ -1,0 +1,165 @@
+---
+const { activeItem } = Astro.props;
+const menu = [
+  {
+    title: "Blog",
+    href: "/blog",
+  },
+  {
+    title: "Projects",
+    href: "/projects",
+  },
+  {
+    title: "Home",
+    href: "/",
+  },
+  {
+    title: "About",
+    href: "/about",
+  },
+  {
+    title: "Contact",
+    href: "/contact",
+  },
+];
+---
+
+<header>
+  <nav>
+    {
+      menu.map((item) =>
+        item.title === "Home" ? (
+          <div class="menu-item-home">
+            <a href={item.href}>ADC</a>
+          </div>
+        ) : (
+          <div class={`menu-item ${item.title === activeItem ? "active" : ""}`}>
+            <a href={item.href}>{item.title}</a>
+          </div>
+        ),
+      )
+    }
+  </nav>
+</header>
+
+<style lang="scss">
+  header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+  }
+
+  nav {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: $color-accent-1;
+    height: 2.85rem;
+    border-radius: 5px;
+    padding: 0 1rem;
+    position: relative;
+    margin-top: 1.5rem;
+    width: 60rem;
+
+    .menu-item {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+
+      a {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        padding: 0 1.5rem;
+        text-decoration: none;
+        color: $color-white;
+        font-size: 1rem;
+        position: relative;
+        z-index: 2;
+        transition: color 0.3s ease;
+      }
+
+      &::before,
+      &::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 0;
+        background-color: $color-accent-2;
+        transition: height 0.3s ease;
+        z-index: 1;
+      }
+
+      &::before {
+        top: 0;
+      }
+      &::after {
+        bottom: 0;
+      }
+
+      &.active {
+        &::before,
+        &::after {
+          height: 4px;
+        }
+      }
+
+      &:hover {
+        &::before,
+        &::after {
+          height: 51%;
+        }
+
+        a {
+          color: $color-text;
+          font-weight: 800;
+        }
+      }
+    }
+
+    .menu-item-home {
+      background-color: $color-accent-2;
+      width: 4rem;
+      height: 4rem;
+      border-radius: 50%;
+      align-items: center;
+      justify-content: center;
+      margin: 0 1rem;
+      box-shadow: 0 0 0 8px $color-accent-1;
+      z-index: 10;
+      overflow: hidden;
+      transition: background-color 0.3s ease;
+
+      a {
+        transition: color 0.3s ease;
+      }
+
+      &:hover {
+        background-color: $color-accent-1;
+        a {
+          color: $color-white;
+        }
+      }
+
+      a {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        color: #1a2421;
+        font-weight: bold;
+        text-decoration: none;
+        border-radius: 50%;
+      }
+    }
+  }
+</style>
