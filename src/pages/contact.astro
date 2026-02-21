@@ -1,0 +1,10 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Menu from "../components/Menu.astro";
+const currentPage = "Contact";
+const title = "Contact";
+---
+
+<BaseLayout title={title}>
+  <Menu activeItem={currentPage} />
+</BaseLayout>
