@@ -7,4 +7,66 @@ const title = "Home";
 
 <BaseLayout title={title}>
   <Menu />
+  <main>
+    <h1>
+      <span class="main-name">ADRIÁN DOMÍNGUEZ</span>
+      <br />
+      <span class="main-job-position">SOFTWARE DEVELOPER</span>
+    </h1>
+    <div class="container">
+      <img src="/images/adrian.jpeg" alt="Profile Picture" />
+      <div class="presentation">
+        <h2>Hello</h2>
+        <p>
+          Lorem ipsum dolor sit amet consectetur, adipisicing elit. Dignissimos
+          quaerat qui, magnam odit dolorem fuga beatae porro voluptas sequi
+          vitae illo repellendus blanditiis consequuntur distinctio at id! At,
+          sit! Distinctio.
+        </p>
+      </div>
+    </div>
+  </main>
 </BaseLayout>
+
+<style lang="scss">
+  main {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    margin-top: 2rem;
+  }
+
+  .container {
+    display: flex;
+    flex-direction: row;
+    gap: 1.5rem;
+    background-color: $color-primary;
+    border: 1px solid $color-accent-1;
+    border-radius: 5px;
+    padding: 1rem;
+
+    img {
+      width: 15rem;
+      height: 15rem;
+      border: 1px solid $color-accent-1;
+      border-radius: 50%;
+    }
+
+    .presentation {
+      display: column;
+      flex-direction: column;
+    }
+  }
+
+  h1 {
+    text-align: center;
+  }
+
+  .main-name {
+    color: $color-accent-1;
+  }
+
+  .main-job-position {
+    color: $color-accent-2;
+  }
+</style>
