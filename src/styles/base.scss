@@ -10,6 +10,20 @@ html {
 
 body {
   background-color: $color-tertiary;
-  padding-right: 25rem;
-  padding-left: 25rem;
+  
+  @include respond-to('desktop') {
+    padding-right: 25rem;
+    padding-left: 25rem;
+  }
+
+  @include respond-to('tablet') {
+    padding-right: 10rem;
+    padding-left: 10rem;
+  }
+
+  @include respond-to('mobile') {
+    padding-right: 3rem;
+    padding-left: 3rem;
+  }
+  
 }
