@@ -1,0 +1,86 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Menu from "../components/Menu.astro";
+import Table from "../components/Table.astro";
+
+const tableHeadings = ["Company", "Link"];
+const tableData = [
+  {
+    company: "Linux Foundation",
+    link: "https://careers.linuxfoundation.org/jobs",
+  },
+  {
+    company: "Drupal Association",
+    link: "https://www.drupal.org/association/careers",
+  },
+  {
+    company: "FreeBSD Foundation",
+    link: "https://freebsdfoundation.org/open-positions/",
+  },
+  {
+    company: "Penpot",
+    link: "https://penpot.app/careers",
+  },
+  {
+    company: "Discourse",
+    link: "https://www.discourse.org/jobs",
+  },
+  {
+    company: "DuckDuckGo",
+    link: "https://duckduckgo.com/hiring",
+  },
+  {
+    company: "Signal",
+    link: "https://signal.org/workworkwork/",
+  },
+  {
+    company: "W3C",
+    link: "https://www.w3.org/careers/",
+  },
+  {
+    company: "OWASP",
+    link: "https://owasp.org/careers/",
+  },
+  {
+    company: "Mastodon",
+    link: "https://joinmastodon.org/careers#open-positions",
+  },
+  {
+    company: "Standard Notes",
+    link: "https://standardnotes.com/jobs",
+  },
+  {
+    company: "Muse Group",
+    link: "https://www.mu.se/vacancies",
+  },
+  {
+    company: "Open Collective",
+    link: "https://opencollective.com/hiring",
+  },
+  {
+    company: "Tower Git",
+    link: "https://www.git-tower.com/company/jobs/mac",
+  },
+  {
+    company: "Thoughtbot",
+    link: "https://thoughtbot.com/jobs#jobs",
+  },
+];
+---
+
+<BaseLayout>
+  <Menu />
+  <main>
+    <h1>Jobs list</h1>
+    <Table data={tableData} headers={tableHeadings} />
+  </main>
+</BaseLayout>
+
+<style lang="scss">
+  main {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    margin-top: 2rem;
+  }
+</style>
