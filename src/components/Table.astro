@@ -1,0 +1,65 @@
+---
+interface Props {
+  headers: string[];
+  data: { [key: string]: any }[];
+}
+
+const { headers, data } = Astro.props;
+---
+
+<table>
+  <thead>
+    <tr>
+      {headers.map((header) => <th>{header}</th>)}
+    </tr>
+  </thead>
+  <tbody>
+    {
+      data.map((row) => (
+        <tr>
+          {headers.map((header) => {
+            const key = header.toLowerCase();
+            const value = row[key];
+
+            return (
+              <td>
+                {key === "link" ? (
+                  <a href={value} target="_blank" rel="noopener noreferrer">
+                    {value}
+                  </a>
+                ) : (
+                  value
+                )}
+              </td>
+            );
+          })}
+        </tr>
+      ))
+    }
+  </tbody>
+</table>
+
+<style lang="scss">
+  table {
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid $color-accent-1;
+    border-radius: 5px;
+    overflow: hidden;
+  }
+
+  tr:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+  }
+
+  th,
+  td {
+    border: 1px solid $color-accent-1;
+    padding: 0.5rem;
+  }
+
+  th {
+    background-color: $color-accent-1;
+    color: white;
+  }
+</style>
