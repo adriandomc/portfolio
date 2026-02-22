@@ -1,8 +1,11 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Menu from "../components/Menu.astro";
+import Badge from "../components/Badge.astro";
 const currentPage = "Home";
 const title = "Home";
+
+const badges: string[] = ["React", "Typescript", "PHP", "Node.js"];
 ---
 
 <BaseLayout title={title}>
@@ -16,13 +19,16 @@ const title = "Home";
     <div class="container">
       <img src="/images/adrian.jpeg" alt="Profile Picture" />
       <div class="presentation">
-        <h2>Hello</h2>
+        <h2>Hello!</h2>
         <p>
-          Lorem ipsum dolor sit amet consectetur, adipisicing elit. Dignissimos
-          quaerat qui, magnam odit dolorem fuga beatae porro voluptas sequi
-          vitae illo repellendus blanditiis consequuntur distinctio at id! At,
-          sit! Distinctio.
+          My name is Adrián, I am a software developer from Mexico. My current
+          focus is on frontend web solutions, however I have experience working
+          through the whole web stack, from the design to the deployment of
+          fully fledged products.
         </p>
+        <div class="badge-container">
+          {badges.map((badge) => <Badge title={badge} />)}
+        </div>
       </div>
     </div>
   </main>
@@ -68,5 +74,11 @@ const title = "Home";
 
   .main-job-position {
     color: $color-accent-2;
+  }
+
+  .badge-container {
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
   }
 </style>
