@@ -3,9 +3,20 @@
 @import "./variables";
 
 html {
-  font-size: 16px;
   font-family: "JetBrains Mono", monospace;
   color: $color-text;
+
+  @include respond-to('desktop') {
+    font-size: 16px;
+  }
+
+  @include respond-to('tablet') {
+    font-size: 15px;
+  }
+
+  @include respond-to('mobile') {
+    font-size: 14px;
+  }
 }
 
 body {
