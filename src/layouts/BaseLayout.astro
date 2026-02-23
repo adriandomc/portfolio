@@ -1,19 +1,61 @@
 ---
-const { title, description } = Astro.props;
 import "../styles/base.scss";
+import Footer from "../components/Footer.astro";
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = "Adrián Domínguez — Software Developer" } = Astro.props;
+const siteUrl = "https://portfolio.adriandomc.com";
+const canonicalURL = new URL(Astro.url.pathname, siteUrl);
 ---
 
-<html lang="es">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" href="/favicon.ico" />
-    <meta name="viewport" content="width=device-width" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="generator" content={Astro.generator} />
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalURL.href} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonicalURL.href} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
+      rel="stylesheet"
+    />
+
     <title>{title}</title>
   </head>
   <body>
+    <a href="#main-content" class="skip-link">Skip to content</a>
     <slot />
     <Footer />
   </body>
 </html>
+
+<style lang="scss">
+  .skip-link {
+    position: absolute;
+    top: -100%;
+    left: 1rem;
+    padding: 0.5rem 1rem;
+    background-color: $color-accent-1;
+    color: $color-white;
+    border-radius: 0 0 5px 5px;
+    z-index: 100;
+    text-decoration: none;
+    font-size: 0.875rem;
+
+    &:focus {
+      top: 0;
+    }
+  }
+</style>
