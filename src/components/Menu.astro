@@ -1,4 +1,8 @@
 ---
+interface Props {
+  activeItem?: string;
+}
+
 const { activeItem } = Astro.props;
 const menu = [
   {
@@ -25,16 +29,16 @@ const menu = [
 ---
 
 <header>
-  <nav>
+  <nav aria-label="Main navigation">
     {
       menu.map((item) =>
         item.title === "Home" ? (
           <div class="menu-item-home">
-            <a href={item.href}>ADC</a>
+            <a href={item.href} aria-current={activeItem === item.title ? "page" : undefined}>ADC</a>
           </div>
         ) : (
           <div class={`menu-item ${item.title === activeItem ? "active" : ""}`}>
-            <a href={item.href}>{item.title}</a>
+            <a href={item.href} aria-current={item.title === activeItem ? "page" : undefined}>{item.title}</a>
           </div>
         ),
       )
@@ -48,28 +52,40 @@ const menu = [
     flex-direction: row;
     align-items: center;
     justify-content: center;
+    padding: 0 1rem;
   }
 
   nav {
     display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
     justify-content: center;
     align-items: center;
     background-color: $color-accent-1;
-    height: 2.85rem;
     border-radius: 5px;
-    padding: 0 1rem;
+    padding: 0.5rem;
     position: relative;
     margin-top: 1.5rem;
-    width: 60rem;
+    width: 100%;
+    max-width: 60rem;
+    gap: 0.5rem;
+
+    @include respond-to("tablet") {
+      flex-wrap: nowrap;
+      height: 2.85rem;
+      padding: 0 1rem;
+      gap: 0;
+    }
 
     .menu-item {
       display: flex;
       align-items: center;
       justify-content: center;
+      height: 2.85rem;
       padding: 0;
-      height: 100%;
       position: relative;
       overflow: hidden;
+      border-radius: 3px;
 
       a {
         display: flex;
@@ -77,13 +93,18 @@ const menu = [
         justify-content: center;
         width: 100%;
         height: 100%;
-        padding: 0 1.5rem;
+        padding: 0 0.75rem;
         text-decoration: none;
         color: $color-white;
-        font-size: 1rem;
+        font-size: 0.9rem;
         position: relative;
         z-index: 2;
         transition: color 0.3s ease;
+
+        @include respond-to("tablet") {
+          padding: 0 1.5rem;
+          font-size: 1rem;
+        }
       }
 
       &::before,
@@ -126,21 +147,26 @@ const menu = [
     }
 
     .menu-item-home {
+      display: flex;
       background-color: $color-accent-2;
-      font-size: 1.4rem;
-      width: 4rem;
-      height: 4rem;
+      font-size: 1.1rem;
+      width: 3.5rem;
+      height: 3.5rem;
       border-radius: 50%;
       align-items: center;
       justify-content: center;
-      margin: 0 1rem;
-      box-shadow: 0 0 0 8px $color-accent-1;
+      margin: 0.5rem;
+      box-shadow: 0 0 0 4px $color-accent-1;
       z-index: 10;
       overflow: hidden;
       transition: background-color 0.3s ease;
 
-      a {
-        transition: color 0.3s ease;
+      @include respond-to("tablet") {
+        font-size: 1.4rem;
+        width: 4rem;
+        height: 4rem;
+        margin: 0 1rem;
+        box-shadow: 0 0 0 8px $color-accent-1;
       }
 
       &:hover {
@@ -156,10 +182,11 @@ const menu = [
         justify-content: center;
         width: 100%;
         height: 100%;
-        color: #1a2421;
+        color: $color-text;
         font-weight: bold;
         text-decoration: none;
         border-radius: 50%;
+        transition: color 0.3s ease;
       }
     }
   }
