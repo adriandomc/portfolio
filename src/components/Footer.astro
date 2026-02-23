@@ -1,0 +1,61 @@
+---
+const currentYear = new Date().getFullYear();
+---
+
+<footer>
+  <div class="footer-content">
+    <div class="footer-links">
+      <a href="https://github.com/adriandomc" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
+        GitHub
+      </a>
+      <a href="https://linkedin.com/in/adriandomc" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+        LinkedIn
+      </a>
+      <a href="mailto:hello@adriandomc.com" aria-label="Email">
+        Email
+      </a>
+    </div>
+    <p class="footer-copy">
+      &copy; {currentYear} Adrián Domínguez. All rights reserved.
+    </p>
+  </div>
+</footer>
+
+<style lang="scss">
+  footer {
+    margin-top: 4rem;
+    padding: 2rem 0;
+    border-top: 1px solid $color-accent-1;
+    text-align: center;
+  }
+
+  .footer-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .footer-links {
+    display: flex;
+    gap: 1.5rem;
+
+    a {
+      color: $color-accent-1;
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: color 0.2s ease;
+
+      &:hover {
+        color: $color-accent-2;
+      }
+    }
+  }
+
+  .footer-copy {
+    font-size: 0.75rem;
+    color: $color-accent-1;
+    opacity: 0.7;
+  }
+</style>
