@@ -2,22 +2,21 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Menu from "../components/Menu.astro";
 import Badge from "../components/Badge.astro";
-const currentPage = "Home";
 const title = "Home";
 
 const badges: string[] = ["React", "Typescript", "PHP", "Node.js"];
 ---
 
-<BaseLayout title={title}>
-  <Menu />
-  <main>
+<BaseLayout title={title} description="Portfolio of Adrián Domínguez — Software Developer from Mexico specializing in React, TypeScript, PHP and Node.js.">
+  <Menu activeItem="Home" />
+  <main id="main-content">
     <h1>
       <span class="main-name">ADRIÁN DOMÍNGUEZ</span>
       <br />
       <span class="main-job-position">SOFTWARE DEVELOPER</span>
     </h1>
     <div class="container">
-      <img src="/images/adrian.jpeg" alt="Profile Picture" />
+      <img src="/images/adrian.jpeg" alt="Profile Picture" width="240" height="240" />
       <div class="presentation">
         <h2>Hello!</h2>
         <p>
@@ -46,6 +45,7 @@ const badges: string[] = ["React", "Typescript", "PHP", "Node.js"];
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
+    justify-content: center;
     gap: 1.5rem;
     background-color: $color-primary;
     border: 1px solid $color-accent-1;
@@ -53,15 +53,18 @@ const badges: string[] = ["React", "Typescript", "PHP", "Node.js"];
     padding: 1rem;
 
     img {
+      flex: 0 0 15rem;
       width: 15rem;
       height: 15rem;
       border: 1px solid $color-accent-1;
       border-radius: 50%;
+      object-fit: cover;
     }
 
     .presentation {
-      display: column;
+      display: flex;
       flex-direction: column;
+      flex: 1 1 20rem;
     }
   }
 
@@ -80,6 +83,8 @@ const badges: string[] = ["React", "Typescript", "PHP", "Node.js"];
   .badge-container {
     display: flex;
     flex-direction: row;
+    flex-wrap: wrap;
     gap: 0.5rem;
+    margin-top: 1rem;
   }
 </style>
