@@ -14,12 +14,8 @@ $breakpoint-tablet: 768px;
 $breakpoint-desktop: 1200px;
 
 @mixin respond-to($media) {
-  @if $media == 'mobile' {
-    @media (max-width: $breakpoint-mobile) {
-      @content;
-    }
-  } @else if $media == 'tablet' {
-    @media (max-width: $breakpoint-tablet) {
+  @if $media == 'tablet' {
+    @media (min-width: $breakpoint-tablet) {
       @content;
     }
   } @else if $media == 'desktop' {
