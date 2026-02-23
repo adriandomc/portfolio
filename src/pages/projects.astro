@@ -1,10 +1,62 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Menu from "../components/Menu.astro";
-const currentPage = "Projects";
+import ProjectCard from "../components/ProjectCard.astro";
+
 const title = "Projects";
+
+const projects = [
+  {
+    title: "Point of Sale Web Platform",
+    description:
+      "A web platform developed for a shoestore, with a window-based interface, complete inventory control and custom tools like barcode, QR and tickets generator.",
+    tags: ["Ruby on Rails", "Vue.js", "PostgreSQL"],
+    href: "",
+  },
+];
 ---
 
-<BaseLayout title={title}>
-  <Menu activeItem={currentPage} />
+<BaseLayout title={title} description="Projects by Adrián Domínguez — a showcase of web development work.">
+  <Menu activeItem="Projects" />
+  <main id="main-content">
+    <h1>Projects</h1>
+    <div class="projects-grid">
+      {
+        projects.map((project) => (
+          <ProjectCard
+            title={project.title}
+            description={project.description}
+            tags={project.tags}
+            href={project.href}
+          />
+        ))
+      }
+    </div>
+  </main>
 </BaseLayout>
+
+<style lang="scss">
+  main {
+    display: flex;
+    flex-direction: column;
+    margin-top: 2rem;
+  }
+
+  h1 {
+    margin-bottom: 1.5rem;
+  }
+
+  .projects-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+
+    @include respond-to("tablet") {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    @include respond-to("desktop") {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+</style>
