@@ -1,10 +1,151 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Menu from "../components/Menu.astro";
-const currentPage = "About";
+import Badge from "../components/Badge.astro";
+import Card from "../components/Card.astro";
+
 const title = "About";
+
+const techStack = {
+  Frontend: ["React", "TypeScript", "Astro", "HTML/CSS", "SCSS"],
+  Backend: ["Node.js", "PHP", "Express", "REST APIs"],
+  Tools: ["Git", "Docker", "Linux", "VS Code", "Figma"],
+};
 ---
 
-<BaseLayout title={title}>
-  <Menu activeItem={currentPage} />
+<BaseLayout title={title} description="About Adrián Domínguez — Software Developer from Mexico with a focus on frontend web solutions.">
+  <Menu activeItem="About" />
+  <main id="main-content">
+    <h1>About Me</h1>
+
+    <section class="bio">
+      <Card>
+        <p>
+          I'm Adrián Domínguez, a software developer based in Mexico. I specialize
+          in building modern web applications with a focus on clean code,
+          performance, and user experience.
+        </p>
+        <p>
+          My journey in software development has taken me across the full web
+          stack — from crafting pixel-perfect interfaces with React and TypeScript
+          to building robust backend services with Node.js and PHP. I enjoy the
+          process of turning ideas into real products, from design to deployment.
+        </p>
+        <p>
+          When I'm not coding, you can find me exploring open-source projects,
+          reading about new web technologies, or tinkering with Linux systems.
+        </p>
+      </Card>
+    </section>
+
+    <section class="tech-stack">
+      <h2>Tech Stack</h2>
+      <div class="stack-grid">
+        {
+          Object.entries(techStack).map(([category, tools]) => (
+            <Card title={category}>
+              <div class="stack-badges">
+                {tools.map((tool) => (
+                  <Badge title={tool} />
+                ))}
+              </div>
+            </Card>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="experience">
+      <h2>Experience</h2>
+      <div class="timeline">
+        <div class="timeline-item">
+          <Card>
+            <div class="timeline-header">
+              <h3>Software Developer</h3>
+              <span class="timeline-period">2022 — Present</span>
+            </div>
+            <p>
+              Building and maintaining web applications using modern frontend
+              technologies. Working with cross-functional teams to deliver
+              high-quality products.
+            </p>
+          </Card>
+        </div>
+      </div>
+    </section>
+  </main>
 </BaseLayout>
+
+<style lang="scss">
+  main {
+    display: flex;
+    flex-direction: column;
+    margin-top: 2rem;
+  }
+
+  h1 {
+    margin-bottom: 1.5rem;
+  }
+
+  h2 {
+    margin-bottom: 1rem;
+    margin-top: 2rem;
+  }
+
+  section {
+    margin-bottom: 1rem;
+  }
+
+  .bio p {
+    margin-bottom: 0.75rem;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  .stack-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+
+    @include respond-to("tablet") {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  .stack-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .timeline-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-bottom: 0.5rem;
+
+    @include respond-to("tablet") {
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    h3 {
+      font-size: 1rem;
+    }
+  }
+
+  .timeline-period {
+    font-size: 0.8rem;
+    color: $color-accent-2;
+    font-weight: 600;
+  }
+</style>
