@@ -14,20 +14,65 @@ html {
 
 body {
   background-color: $color-tertiary;
-  
-  @include respond-to('desktop') {
-    padding-right: 25rem;
-    padding-left: 25rem;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  width: 100%;
+  max-width: 1200px;
+  box-sizing: border-box;
+
+  @include respond-to("tablet") {
+    padding: 0 3rem;
   }
 
-  @include respond-to('tablet') {
-    padding-right: 10rem;
-    padding-left: 10rem;
+  @include respond-to("desktop") {
+    padding: 0 5rem;
   }
+}
 
-  @include respond-to('mobile') {
-    padding-right: 3rem;
-    padding-left: 3rem;
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0;
+}
+
+p {
+  margin: 0.5rem 0;
+  line-height: 1.6;
+}
+
+ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+a {
+  color: $color-link;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: $color-accent-2;
   }
-  
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+:focus-visible {
+  outline: 2px solid $color-accent-2;
+  outline-offset: 2px;
 }
