@@ -1,10 +1,89 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Menu from "../components/Menu.astro";
-const currentPage = "Contact";
+import Card from "../components/Card.astro";
+import Button from "../components/Button.astro";
+
 const title = "Contact";
+
+const links = [
+  {
+    label: "GitHub",
+    href: "https://github.com/adriandomc",
+    description: "Check out my open-source projects and contributions.",
+  },
+  {
+    label: "LinkedIn",
+    href: "https://linkedin.com/in/adriandomc",
+    description: "Connect with me professionally.",
+  },
+  {
+    label: "Email",
+    href: "mailto:hello@adriandomc.com",
+    description: "Send me an email directly.",
+  },
+];
 ---
 
-<BaseLayout title={title}>
-  <Menu activeItem={currentPage} />
+<BaseLayout title={title} description="Get in touch with Adrián Domínguez — Software Developer.">
+  <Menu activeItem="Contact" />
+  <main id="main-content">
+    <h1>Contact</h1>
+    <p class="contact-intro">
+      I'm always open to new opportunities, collaborations, or just a friendly
+      conversation about web development. Feel free to reach out through any of
+      the channels below.
+    </p>
+
+    <div class="contact-grid">
+      {
+        links.map((link) => (
+          <Card title={link.label}>
+            <p>{link.description}</p>
+            <div class="contact-action">
+              <Button
+                label={`Visit ${link.label}`}
+                href={link.href}
+                variant="primary"
+                target={link.href.startsWith("mailto:") ? undefined : "_blank"}
+              />
+            </div>
+          </Card>
+        ))
+      }
+    </div>
+  </main>
 </BaseLayout>
+
+<style lang="scss">
+  main {
+    display: flex;
+    flex-direction: column;
+    margin-top: 2rem;
+  }
+
+  h1 {
+    margin-bottom: 0.5rem;
+  }
+
+  .contact-intro {
+    max-width: 40rem;
+    margin-bottom: 2rem;
+    color: $color-accent-1;
+    line-height: 1.6;
+  }
+
+  .contact-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+
+    @include respond-to("tablet") {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  .contact-action {
+    margin-top: 1rem;
+  }
+</style>
