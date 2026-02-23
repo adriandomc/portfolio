@@ -2,54 +2,71 @@
 interface Props {
   headers: string[];
   data: { [key: string]: any }[];
+  caption?: string;
 }
 
-const { headers, data } = Astro.props;
+const { headers, data, caption } = Astro.props;
 ---
 
-<table>
-  <thead>
-    <tr>
-      {headers.map((header) => <th>{header}</th>)}
-    </tr>
-  </thead>
-  <tbody>
-    {
-      data.map((row) => (
-        <tr>
-          {headers.map((header) => {
-            const key = header.toLowerCase();
-            const value = row[key];
+<div class="table-wrapper">
+  <table>
+    {caption && <caption>{caption}</caption>}
+    <thead>
+      <tr>
+        {headers.map((header) => <th>{header}</th>)}
+      </tr>
+    </thead>
+    <tbody>
+      {
+        data.map((row) => (
+          <tr>
+            {headers.map((header) => {
+              const key = header.toLowerCase();
+              const value = row[key];
 
-            return (
-              <td>
-                {key === "link" ? (
-                  <a href={value} target="_blank" rel="noopener noreferrer">
-                    {value}
-                  </a>
-                ) : (
-                  value
-                )}
-              </td>
-            );
-          })}
-        </tr>
-      ))
-    }
-  </tbody>
-</table>
+              return (
+                <td>
+                  {key === "link" ? (
+                    <a href={value} target="_blank" rel="noopener noreferrer">
+                      {value}
+                    </a>
+                  ) : (
+                    value
+                  )}
+                </td>
+              );
+            })}
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+</div>
 
 <style lang="scss">
+  .table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   table {
     border-collapse: separate;
     border-spacing: 0;
     border: 1px solid $color-accent-1;
     border-radius: 5px;
     overflow: hidden;
+    width: 100%;
+  }
+
+  caption {
+    text-align: left;
+    padding: 0.5rem 0;
+    font-weight: 600;
+    caption-side: top;
   }
 
   tr:hover {
-    background-color: rgba(0, 0, 0, 0.1);
+    background-color: rgba($color-accent-1, 0.1);
   }
 
   th,
@@ -60,6 +77,6 @@ const { headers, data } = Astro.props;
 
   th {
     background-color: $color-accent-1;
-    color: white;
+    color: $color-white;
   }
 </style>
