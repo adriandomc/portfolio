@@ -102,15 +102,14 @@ const posts = (await getCollection("blog", ({ data }) => !data.draft)).sort(
     }
 
     time {
-      font-size: 0.8rem;
+      font-size: 0.95rem;
       color: $color-accent-1;
     }
 
     p {
       margin-top: 0.5rem;
-      font-size: 0.9rem;
       line-height: 1.5;
-      color: $color-accent-1;
+      color: color.adjust($color-accent-1, $lightness: -10%)
     }
   }
 
