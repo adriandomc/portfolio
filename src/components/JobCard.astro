@@ -1,0 +1,57 @@
+---
+import Card from './Card.astro';
+
+interface Props {
+  data: {
+    header: string;
+    period: string;
+    stack: string[];
+    activities: string[];
+  };
+}
+
+const { data } = Astro.props;
+---
+<Card>
+  <div class="job-header">
+    <h3>{data.header}</h3>
+    <span class="job-period">{data.period}</span>
+  </div>
+  <ul>
+
+    {
+      data.activities.map((activity) => (
+        <li>{activity}</li>
+      ))
+    }
+    <ul/>
+</Card>
+
+<style lang="scss">
+  .job-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-bottom: 0.5rem;
+
+    @include respond-to("tablet") {
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    h3 {
+      font-size: 1rem;
+    }
+  }
+
+  .job-period {
+    font-size: 0.9rem;
+    color: $color-accent-1;
+    font-weight: 600;
+  }
+
+  .job-description {
+  white-space: pre-line;
+  }
+</style>
