@@ -3,6 +3,7 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import Menu from "../components/Menu.astro";
 import Badge from "../components/Badge.astro";
 import Card from "../components/Card.astro";
+import JobCard from "../components/JobCard.astro";
 
 const title = "About";
 
@@ -19,7 +20,11 @@ const jobsExperience = [
     stack: [
       "Javascript", "CELLS", "SCSS", "HTML"
     ],
-    description: ""
+    activities: [
+      "",
+      "",
+      ""
+    ]
   },
   {
     header: "Full-stack Developer @ WAAK Technologies",
@@ -27,11 +32,11 @@ const jobsExperience = [
     stack: [
       "PHP", "jQuery", "Node.js"
     ],
-    description: "
-      • Developed web platforms for clients with large-scale operations in the construction, transportation and logistics industry, with mobile-app integration and multi-tenant database systems.
-      • Designed data visualization tools, such as unit tracking maps, dynamic reports with position markers and a real-time timetable to monitor units' routines.
-    "
-
+    activities: [
+      "Developed web platforms for clients with large-scale operations in the construction, transportation and logistics industry, with mobile-app integration and multi-tenant database systems.",
+      "Designed data visualization tools, such as unit tracking maps, dynamic reports with position markers and a real-time timetable to monitor units' routines.",
+      ""
+    ]
   }
 ];
 ---
@@ -81,26 +86,11 @@ const jobsExperience = [
     <section class="experience">
       <h2>Experience</h2>
       <div class="timeline">
-        <div class="timeline-item">
-          <Card>
-            <div class="timeline-header">
-              <h3>Software Developer @ BBVA Mexico</h3>
-              <span class="timeline-period">August 2025 — Present</span>
-            </div>
-            <p>
-              Building frontend components and interfaces using CELLS framework (based on Lit)
-            </p>
-          </Card>
-          <Card>
-            <div class="timeline-header">
-              <h3>Full-stack Developer @ WAAK Technologies</h3>
-              <span class="timeline-period">October 2024 — August 2025</span>
-            </div>
-            <p>
-              PHP and stuff
-            </p>
-          </Card>
-        </div>
+        {
+        jobsExperience.map((job) => (
+          <JobCard data={job} />
+        ))
+        }
       </div>
     </section>
   </main>
@@ -154,28 +144,5 @@ const jobsExperience = [
     display: flex;
     flex-direction: column;
     gap: 1rem;
-  }
-
-  .timeline-header {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    margin-bottom: 0.5rem;
-
-    @include respond-to("tablet") {
-      flex-direction: row;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    h3 {
-      font-size: 1rem;
-    }
-  }
-
-  .timeline-period {
-    font-size: 0.8rem;
-    color: $color-accent-1;
-    font-weight: 600;
   }
 </style>
