@@ -24,6 +24,26 @@
     "href": ""
   },
   {
+    "title": "Unit tracking tools",
+    "description": "A set of visualization tools developed for an All in One platform, for a company in the industry of personnel transportation, consisting of a timeline tracker, realtime unit tracker and a time report generator with geofences and stop markers.",
+    "images": [
+      {
+        "src": "/images/projects/all-in-one/1.png",
+        "alt": "A timeline tracker designed to see the current stop the bus unit is currently on"
+      },
+      {
+        "src": "/images/projects/all-in-one/2.png",
+        "alt": "Map visualizer which is updated in real time, showing the unit position and stops marker"
+      },
+      {
+        "src": "/images/projects/all-in-one/3.png",
+        "alt": "A time report generated with every position of the bus during its journey"
+      }
+    ],
+    "tags": ["PHP", "jQuery", "Leaflet", "CSS", "Node.js"],
+    "href": ""
+  },
+  {
     "title": "Personal Website",
     "description": "A minimalist, low-resource website made with a Dinotext, a custom markup language, parser which allows to create new pages in a matter of seconds.",
     "images": [
