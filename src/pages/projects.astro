@@ -10,7 +10,12 @@ const projects = [
     title: "Point of Sale Web Platform",
     description:
       "A web platform developed for a shoe store, with a realtime window-based interface, complete inventory control and custom tools like barcode, QR and tickets generator.",
-    image: "/images/projects/POS.png",
+    images: [
+      "/images/projects/zapa-pos/1.png",
+      "/images/projects/zapa-pos/2.png",
+      "/images/projects/zapa-pos/3.png",
+      "/images/projects/zapa-pos/4.png",
+    ],
     tags: ["Ruby on Rails", "Vue.js", "SCSS", "PostgreSQL"],
     href: "https://zapa.adriandomc.com",
   },
@@ -35,7 +40,7 @@ const projects = [
             title={project.title}
             description={project.description}
             tags={project.tags}
-            image={project.image}
+            images={project.images}
             href={project.href}
           />
         ))
