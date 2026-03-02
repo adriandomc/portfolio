@@ -1,0 +1,173 @@
+<div id="image-viewer" class="image-viewer" data-active="false">
+  <button class="image-viewer-close" aria-label="Close">&times;</button>
+  <button class="image-viewer-prev" aria-label="Previous">&#8249;</button>
+  <button class="image-viewer-next" aria-label="Next">&#8250;</button>
+  <div class="image-viewer-backdrop"></div>
+  <img class="image-viewer-img" src="" alt="" />
+  <span class="image-viewer-counter"></span>
+</div>
+
+<script>
+  const viewer = document.getElementById("image-viewer")!;
+  const img = viewer.querySelector<HTMLImageElement>(".image-viewer-img")!;
+  const counter = viewer.querySelector<HTMLSpanElement>(".image-viewer-counter")!;
+  const btnClose = viewer.querySelector<HTMLButtonElement>(".image-viewer-close")!;
+  const btnPrev = viewer.querySelector<HTMLButtonElement>(".image-viewer-prev")!;
+  const btnNext = viewer.querySelector<HTMLButtonElement>(".image-viewer-next")!;
+  const backdrop = viewer.querySelector<HTMLDivElement>(".image-viewer-backdrop")!;
+
+  let images: string[] = [];
+  let currentIndex = 0;
+
+  function open(srcs: string[], startIndex: number) {
+    images = srcs;
+    currentIndex = startIndex;
+    render();
+    viewer.dataset.active = "true";
+    document.body.style.overflow = "hidden";
+  }
+
+  function close() {
+    viewer.dataset.active = "false";
+    document.body.style.overflow = "";
+  }
+
+  function render() {
+    img.src = images[currentIndex];
+    const hasMultiple = images.length > 1;
+    btnPrev.style.display = hasMultiple ? "" : "none";
+    btnNext.style.display = hasMultiple ? "" : "none";
+    counter.style.display = hasMultiple ? "" : "none";
+    counter.textContent = `${currentIndex + 1} / ${images.length}`;
+  }
+
+  function prev() {
+    currentIndex = (currentIndex - 1 + images.length) % images.length;
+    render();
+  }
+
+  function next() {
+    currentIndex = (currentIndex + 1) % images.length;
+    render();
+  }
+
+  btnClose.addEventListener("click", close);
+  backdrop.addEventListener("click", close);
+  btnPrev.addEventListener("click", prev);
+  btnNext.addEventListener("click", next);
+
+  document.addEventListener("keydown", (e) => {
+    if (viewer.dataset.active !== "true") return;
+    if (e.key === "Escape") close();
+    if (e.key === "ArrowLeft") prev();
+    if (e.key === "ArrowRight") next();
+  });
+
+  document.querySelectorAll<HTMLElement>("[data-image-viewer]").forEach((el) => {
+    el.addEventListener("click", () => {
+      const srcs = JSON.parse(el.dataset.imageViewer || "[]") as string[];
+      let start = parseInt(el.dataset.imageViewerIndex || "0", 10);
+      const swiper = el.querySelector("swiper-container") as any;
+      if (swiper?.swiper) {
+        start = swiper.swiper.realIndex;
+      }
+      if (srcs.length > 0) open(srcs, start);
+    });
+  });
+</script>
+
+<style lang="scss">
+  .image-viewer {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+
+    &[data-active="true"] {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
+
+  .image-viewer-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+  }
+
+  .image-viewer-img {
+    position: relative;
+    max-width: 90vw;
+    max-height: 85vh;
+    object-fit: contain;
+    border-radius: 4px;
+    z-index: 1;
+  }
+
+  .image-viewer-close {
+    position: absolute;
+    top: 1rem;
+    right: 1.5rem;
+    z-index: 2;
+    background: none;
+    border: none;
+    color: $color-white;
+    font-size: 2.5rem;
+    cursor: pointer;
+    line-height: 1;
+    opacity: 0.8;
+    transition: opacity 0.15s;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+
+  .image-viewer-prev,
+  .image-viewer-next {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    background: rgba(0, 0, 0, 0.4);
+    border: none;
+    color: $color-white;
+    font-size: 2.5rem;
+    padding: 0.25rem 0.75rem;
+    cursor: pointer;
+    border-radius: 4px;
+    opacity: 0.8;
+    transition: opacity 0.15s, background 0.15s;
+
+    &:hover {
+      opacity: 1;
+      background: rgba(0, 0, 0, 0.6);
+    }
+  }
+
+  .image-viewer-prev {
+    left: 1rem;
+  }
+
+  .image-viewer-next {
+    right: 1rem;
+  }
+
+  .image-viewer-counter {
+    position: absolute;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2;
+    color: $color-white;
+    font-size: 0.9rem;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+  }
+</style>
