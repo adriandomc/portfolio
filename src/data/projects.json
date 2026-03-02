@@ -24,8 +24,28 @@
     "href": ""
   },
   {
+    "title": "Personal Website",
+    "description": "A minimalist, low-resource website made with a Dinotext, a custom markup language, parser which allows to create new pages in a matter of seconds.",
+    "images": [
+      {
+        "src": "/images/projects/adriandomc/1.png",
+        "alt": "Home page of my personal website"
+      },
+      {
+        "src": "/images/projects/adriandomc/2.png",
+        "alt": "Music page of my personal website, with information about my songs"
+      },
+      {
+        "src": "/images/projects/adriandomc/3.png",
+        "alt": "A song page made with Dinotext, with images, formatted text and hyperlinks"
+      }
+    ],
+    "tags": ["PHP", "CSS", "Dinotext"],
+    "href": "https://adriandomc.com"
+  },
+  {
     "title": "Dinotext",
-    "description": "Dinotext is a markup language, inspired by Markdown, which is the engine powering my main website (adriandomc.com). It is currently in a very early stage, but I have plans to make it a more formal markup language with real-world applications.",
+    "description": "Dinotext is a markup language, inspired by Markdown, which is the engine powering my main website. It is currently in a very early stage, but I have plans to make it a more formal markup language with real-world applications.",
     "tags": ["PHP"],
     "href": ""
   }
