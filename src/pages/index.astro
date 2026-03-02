@@ -2,9 +2,14 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Menu from "../components/Menu.astro";
 import Badge from "../components/Badge.astro";
+import Card from "../components/Card.astro";
 const title = "Home";
 
-const badges: string[] = ["React", "Typescript", "Ruby on Rails", "PHP", "Node.js"];
+const techStack = {
+  Frontend: ["React", "TypeScript", "Astro", "HTML/CSS", "SCSS"],
+  Backend: ["Node.js", "PHP", "Ruby", "Express", "REST APIs"],
+  Tools: ["Git", "Docker", "Coolify", "Figma"],
+};
 ---
 
 <BaseLayout title={title} description="Portfolio of Adrián Domínguez — Software Developer from Mexico specializing in React, TypeScript, PHP and Node.js.">
@@ -25,12 +30,25 @@ const badges: string[] = ["React", "Typescript", "Ruby on Rails", "PHP", "Node.j
           through the whole web stack, from the design to the deployment of
           fully fledged products.
         </p>
-        <div class="badge-container">
-          {badges.map((badge) => <Badge title={badge} />)}
-        </div>
       </div>
     </div>
   </main>
+  <section class="tech-stack">
+    <h2>Tech Stack</h2>
+    <div class="stack-grid">
+      {
+        Object.entries(techStack).map(([category, tools]) => (
+          <Card title={category}>
+            <div class="stack-badges">
+              {tools.map((tool) => (
+                <Badge title={tool} />
+              ))}
+            </div>
+          </Card>
+        ))
+      }
+    </div>
+  </section>
 </BaseLayout>
 
 <style lang="scss">
@@ -39,6 +57,7 @@ const badges: string[] = ["React", "Typescript", "Ruby on Rails", "PHP", "Node.j
     flex-direction: column;
     justify-content: center;
     margin-top: 2rem;
+    margin-bottom: 2rem;
   }
 
   .container {
@@ -80,11 +99,20 @@ const badges: string[] = ["React", "Typescript", "Ruby on Rails", "PHP", "Node.j
     color: $color-accent-2;
   }
 
-  .badge-container {
+  .stack-grid {
+  margin-top: 0.5rem;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+
+    @include respond-to("tablet") {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  .stack-badges {
     display: flex;
-    flex-direction: row;
     flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-top: 1rem;
+    gap: 0.4rem;
   }
 </style>
