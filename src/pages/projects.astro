@@ -2,6 +2,7 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Menu from "../components/Menu.astro";
 import ProjectCard from "../components/ProjectCard.astro";
+import ImageViewer from "../components/ImageViewer.astro";
 
 const title = "Projects";
 
@@ -17,7 +18,7 @@ const projects = [
       "/images/projects/zapa-pos/4.png",
     ],
     tags: ["Ruby on Rails", "Vue.js", "SCSS", "PostgreSQL"],
-    href: "https://zapa.adriandomc.com",
+    href: "",
   },
   {
     title: "Dinotext",
@@ -47,6 +48,7 @@ const projects = [
       }
     </div>
   </main>
+  <ImageViewer />
 </BaseLayout>
 
 <style lang="scss">
