@@ -1,7 +1,6 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Menu from "../components/Menu.astro";
-import Badge from "../components/Badge.astro";
 import Card from "../components/Card.astro";
 import JobCard from "../components/JobCard.astro";
 
@@ -51,7 +50,6 @@ const jobsExperience = [
   <Menu activeItem="About" />
   <main id="main-content">
     <h1>About Me</h1>
-
     <section class="bio">
       <Card>
         <p>
@@ -117,22 +115,6 @@ const jobsExperience = [
     &:last-child {
       margin-bottom: 0;
     }
-  }
-
-  .stack-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1rem;
-
-    @include respond-to("tablet") {
-      grid-template-columns: repeat(3, 1fr);
-    }
-  }
-
-  .stack-badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
   }
 
   .timeline {
