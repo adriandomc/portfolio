@@ -7,12 +7,6 @@ import JobCard from "../components/JobCard.astro";
 
 const title = "About";
 
-const techStack = {
-  Frontend: ["React", "TypeScript", "Astro", "HTML/CSS", "SCSS"],
-  Backend: ["Node.js", "PHP", "Ruby", "Express", "REST APIs"],
-  Tools: ["Git", "Docker", "Coolify", "Figma"],
-};
-
 const jobsExperience = [
   {
     header: "Software Solutions Developer @ BBVA",
@@ -65,26 +59,8 @@ const jobsExperience = [
         </p>
       </Card>
     </section>
-
-    <section class="tech-stack">
-      <h2>Tech Stack</h2>
-      <div class="stack-grid">
-        {
-          Object.entries(techStack).map(([category, tools]) => (
-            <Card title={category}>
-              <div class="stack-badges">
-                {tools.map((tool) => (
-                  <Badge title={tool} />
-                ))}
-              </div>
-            </Card>
-          ))
-        }
-      </div>
-    </section>
-
     <section class="experience">
-      <h2>Experience</h2>
+      <h2>Job Experience</h2>
       <div class="timeline">
         {
         jobsExperience.map((job) => (
