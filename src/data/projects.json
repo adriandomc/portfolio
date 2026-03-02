@@ -1,0 +1,32 @@
+[
+  {
+    "title": "Point of Sale Web Platform",
+    "description": "A web platform developed for a shoe store, with a realtime window-based interface, complete inventory control and custom tools like barcode, QR and tickets generator.",
+    "images": [
+      {
+        "src": "/images/projects/zapa-pos/1.png",
+        "alt": "Admin dashboard with products, sales and orders metrics"
+      },
+      {
+        "src": "/images/projects/zapa-pos/2.png",
+        "alt": "QR code tag creator with custom position, text size multiple template layouts"
+      },
+      {
+        "src": "/images/projects/zapa-pos/3.png",
+        "alt": "Point of sale for cash register"
+      },
+      {
+        "src": "/images/projects/zapa-pos/4.png",
+        "alt": "Multi-window interface for fast access to tools"
+      }
+    ],
+    "tags": ["Ruby on Rails", "Vue.js", "SCSS", "PostgreSQL"],
+    "href": ""
+  },
+  {
+    "title": "Dinotext",
+    "description": "Dinotext is a markup language, inspired by Markdown, which is the engine powering my main website (adriandomc.com). It is currently in a very early stage, but I have plans to make it a more formal markup language with real-world applications.",
+    "tags": ["PHP"],
+    "href": ""
+  }
+]
