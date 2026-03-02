@@ -1,6 +1,11 @@
 ---
+interface ImageItem {
+  src: string;
+  alt: string;
+}
+
 interface Props {
-  images: string[];
+  images: ImageItem[];
 }
 
 const { images } = Astro.props;
@@ -14,9 +19,9 @@ const { images } = Astro.props;
   loop="true"
   speed="800"
 >
-  {images.map((src) => (
+  {images.map((image) => (
     <swiper-slide>
-      <img src={src} alt="" loading="lazy" />
+      <img src={image.src} alt={image.alt} loading="lazy" />
     </swiper-slide>
   ))}
 </swiper-container>

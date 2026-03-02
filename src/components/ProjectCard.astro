@@ -2,10 +2,15 @@
 import Badge from "./Badge.astro";
 import ImageSlideshow from "./ImageSlideshow.astro";
 
+interface ImageItem {
+  src: string;
+  alt: string;
+}
+
 interface Props {
   title: string;
   description: string;
-  images?: string[];
+  images?: ImageItem[];
   href?: string;
   tags?: string[];
 }
@@ -29,7 +34,7 @@ const { title, description, images = [], href, tags = [] } = Astro.props;
         data-image-viewer={JSON.stringify(images)}
         data-image-viewer-index="0"
       >
-        <img src={images[0]} alt={`${title} screenshot`} loading="lazy" />
+        <img src={images[0].src} alt={images[0].alt} loading="lazy" />
       </div>
     ) : (
       <div class="project-image project-image-placeholder">
