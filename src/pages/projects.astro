@@ -46,6 +46,7 @@ const projects = [
   <Menu activeItem="Projects" />
   <main id="main-content">
     <h1>Projects</h1>
+    <span class="info-text">(Click on images for full-size view)</span>
     <div class="projects-grid">
       {
         projects.map((project) => (
@@ -70,8 +71,11 @@ const projects = [
     margin-top: 2rem;
   }
 
-  h1 {
+  .info-text {
     margin-bottom: 1.5rem;
+    color: $color-accent-1;
+    font-size: 0.85rem;
+    font-style: italic;
   }
 
   .projects-grid {
