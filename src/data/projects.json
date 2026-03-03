@@ -45,7 +45,7 @@
   },
   {
     "title": "Personal Website",
-    "description": "A minimalist, low-resource website made with a Dinotext, a custom markup language, parser which allows to create new pages in a matter of seconds.",
+    "description": "A minimalist, low-resource website made with a Dinotext parser, a custom markup language, which allows to create new pages in a matter of seconds.",
     "images": [
       {
         "src": "/images/projects/adriandomc/1.png",
