@@ -40,7 +40,7 @@
         "alt": "A time report generated with every position of the bus during its journey"
       }
     ],
-    "tags": ["PHP", "jQuery", "Leaflet", "CSS", "Node.js"],
+    "tags": ["PHP", "jQuery", "Leaflet", "CSS", "Node.js", "MySQL"],
     "href": ""
   },
   {
