@@ -44,6 +44,26 @@
     "href": ""
   },
   {
+    "title": "Admin dashboard for GPS and invoicing system",
+    "description": "An admin dashboard for a GPS and invoicing system, with unit deactivation, billing control and services reports, with custom charts and useful insights. Featuring API integration with third party services like Paypal for invoice payment, among others.",
+    "images": [
+      {
+        "src": "/images/projects/gps-invoicing/1.png",
+        "alt": "Admin dashboard with units and equipment metrics, total balance and support contact information"
+      },
+      {
+        "src": "/images/projects/gps-invoicing/2.png",
+        "alt": "Invoice control panel with payment details, digital invoice generation and Paypal integration"
+      },
+      {
+        "src": "/images/projects/gps-invoicing/3.png",
+        "alt": "Custom monitoring dashboard with charts and insights about units and GPS alerts"
+      }
+    ],
+    "tags": ["PHP", "jQuery", "Chart.js", "Tailwind", "Node.js", "MySQL"],
+    "href": ""
+  },
+  {
     "title": "Personal Website",
     "description": "A minimalist, low-resource website made with a Dinotext parser, a custom markup language, which allows to create new pages in a matter of seconds.",
     "images": [
