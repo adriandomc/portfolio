@@ -84,6 +84,26 @@
     "href": "https://adriandomc.com"
   },
   {
+    "title": "Martial arts school website",
+    "description": "A landing page designed for a martial arts school, showcasing classes, schedule, and contact information.",
+    "images": [
+      {
+        "src": "/images/projects/jiujitsukravmaga/1.png",
+        "alt": "Home page of the martial arts school website, with information regarding the school"
+      },
+      {
+        "src": "/images/projects/jiujitsukravmaga/2.png",
+        "alt": "Classes and schedule information with interactive images slideshow"
+      },
+      {
+        "src": "/images/projects/jiujitsukravmaga/3.png",
+        "alt": "Contact information with Google Maps integration and social media links"
+      }
+    ],
+    "tags": ["Astro", "Tailwind", "JavaScript"],
+    "href": "https://jiujitsukravmaga.com.mx"
+  },
+  {
     "title": "Dinotext",
     "description": "Dinotext is a markup language, inspired by Markdown, which is the engine powering my main website. It is currently in a very early stage, but I have plans to make it a more formal markup language with real-world applications.",
     "tags": ["PHP"],
