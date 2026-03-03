@@ -114,17 +114,19 @@ const { title, description, images = [], href, tags = [] } = Astro.props;
 
     a {
       color: $color-text;
-      text-decoration: none;
+      text-decoration: underline;
+      text-decoration-thickness: 2px;
+      text-underline-offset: 2px;
 
       &:hover {
-        color: $color-accent-2;
+        color: color.adjust($color-text, $lightness: 20%);
       }
     }
   }
 
   .project-description {
     font-size: 0.85rem;
-    color: $color-accent-1;
+    color: color.adjust($color-accent-1, $lightness: -10%);
     line-height: 1.5;
   }
 

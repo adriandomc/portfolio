@@ -39,22 +39,3 @@ const canonicalURL = new URL(Astro.url.pathname, siteUrl);
     <Footer />
   </body>
 </html>
-
-<style lang="scss">
-  .skip-link {
-    position: absolute;
-    top: -100%;
-    left: 1rem;
-    padding: 0.5rem 1rem;
-    background-color: $color-accent-1;
-    color: $color-white;
-    border-radius: 0 0 5px 5px;
-    z-index: 100;
-    text-decoration: none;
-    font-size: 0.875rem;
-
-    &:focus {
-      top: 0;
-    }
-  }
-</style>
