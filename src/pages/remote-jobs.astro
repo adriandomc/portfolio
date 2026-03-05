@@ -2,6 +2,7 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Menu from "../components/Menu.astro";
 import Table from "../components/Table.astro";
+import { compileAsync } from "sass";
 
 const tableHeadings = ["Company", "Link"];
 const tableData = [
@@ -52,6 +53,10 @@ const tableData = [
   {
     company: "Calibre",
     link: "https://calibreapp.com/careers#open-positions"
+  },
+  {
+    company: "Bunny",
+    link: "https://bunny.net/careers/"
   },
   {
     company: "Muse Group",
