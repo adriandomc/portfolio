@@ -2,6 +2,7 @@
 import BaseLayout from "./BaseLayout.astro";
 import Menu from "../components/Menu.astro";
 import Badge from "../components/Badge.astro";
+import ImageViewer from "../components/ImageViewer.astro";
 
 interface Props {
   title: string;
@@ -43,6 +44,7 @@ const formattedDate = date.toLocaleDateString("en-US", {
       </div>
     </article>
   </main>
+  <ImageViewer />
 </BaseLayout>
 
 <style lang="scss">
