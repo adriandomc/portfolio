@@ -11,3 +11,10 @@ For a long time I've been wanting to have a functional and active blog, to share
 My first thought was using some kind of admin dashboard, similar to a CMS (Content Management System), where I could manage posts creation, but this solution would imply being connected or at least connecting through the web browser to commit changes. Also, in order to keep the website updated, it needs the changes to be pushed through Github, that's the way the build process is triggered on Coolify.
 
 The obvious solution ended up being using a mobile app, in this case an iOS app. I explored some editor apps in the App Store, but there are very few that support Git/Github integration, which in my opinion didn't meet my workflow criteria. That's why I decided to build **Dinoblogger**.
+
+## Gathering the resources
+
+Having very little experience with iOS development, except for some exposition to React Native, I extensively used Gen-AI models to aid with this endeavour. For this purpose, I used **Gemini** to research and design the implementation of this app and **Github Copilot** was the AI agent with which I developed the source code.
+
+For the interface SwiftUI was used, getting that glassy look introduced in iOS 26. Regarding the text editor, the first iteration used a simple TextView component, though it ended up being replaced with Runestone, a fantastic package that comes with syntax highlighting, tree-sitter, theme customization and more features.
+The angular stone of this project is the Git integration, which was made possible thanks to SwiftGit2, allowing me to fetch and push changes to my remote repos hosted in Github.
