@@ -1,23 +1,34 @@
 ---
-import { Image } from 'astro:assets';
-
 interface Props {
   src: string;
-  alt?: string;
+  alt: string;
+  width?: number;
+  height?: number;
+  maxWidth?: string;
 }
 
-const { src, alt } = Astro.props;
+const { src, alt, width, height, maxWidth = '100%' } = Astro.props;
+const hasCaption = Astro.slots.has('default');
 ---
 
-<figure>
-  <Image src={src} alt={alt}>
-  <figcaption><slot /></figcaption>
+<figure style={`--figure-max-width: ${maxWidth};`}>
+  <img src={src} alt={alt} width={width} height={height} loading="lazy" />
+  {hasCaption && <figcaption><slot /></figcaption>}
 </figure>
 
 <style lang="scss">
   figure {
     margin: 1em 0;
     text-align: center;
+  }
+
+  img {
+    display: block;
+    width: min(100%, var(--figure-max-width));
+    height: auto;
+    margin-inline: auto;
+    border-radius: 5px;
+    border: 1px solid $color-accent-1;
   }
 
   figcaption {
