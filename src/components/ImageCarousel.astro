@@ -43,10 +43,11 @@ const hasCaption = Astro.slots.has("default");
 <style lang="scss">
   .image-carousel {
     margin: 1.5rem auto;
-    width: min(100%, var(--carousel-max-width));
   }
 
   .image-carousel-frame {
+    width: min(100%, var(--carousel-max-width));
+    margin-inline: auto;
     overflow: hidden;
     border: 1px solid $color-accent-1;
     border-radius: 10px;
@@ -55,9 +56,10 @@ const hasCaption = Astro.slots.has("default");
   }
 
   figcaption {
-    margin-top: 0.5rem;
-    text-align: center;
     font-style: italic;
-    color: $color-text;
+    color: color.adjust($color-text, $lightness: 20%);
+    margin-top: 0.5rem;
+    font-size: 0.95rem;
+    text-align: center;
   }
 </style>

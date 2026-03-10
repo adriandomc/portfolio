@@ -33,7 +33,8 @@ const hasCaption = Astro.slots.has('default');
 
   figcaption {
     font-style: italic;
-    color: $color-text;
+    color: color.adjust($color-text, $lightness: 20%);
     margin-top: 0.5rem;
+    font-size: 0.95rem;
   }
 </style>
