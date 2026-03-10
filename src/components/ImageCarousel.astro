@@ -1,0 +1,63 @@
+---
+import ImageSlideshow from "./ImageSlideshow.astro";
+
+interface ImageItem {
+  src: string;
+  alt: string;
+}
+
+interface Props {
+  images: ImageItem[];
+  maxWidth?: string;
+  aspectRatio?: string;
+  objectFit?: "fill" | "contain" | "cover";
+}
+
+const {
+  images,
+  maxWidth = "48rem",
+  aspectRatio = "16 / 10",
+  objectFit = "contain",
+} = Astro.props;
+const hasCaption = Astro.slots.has("default");
+---
+
+{
+  images.length > 0 && (
+    <figure class="image-carousel" style={`--carousel-max-width: ${maxWidth};`}>
+      <div class="image-carousel-frame" data-image-viewer={JSON.stringify(images)} data-image-viewer-index="0">
+        <ImageSlideshow
+          images={images}
+          navigation={images.length > 1}
+          pagination={images.length > 1}
+          autoplay={false}
+          aspectRatio={aspectRatio}
+          objectFit={objectFit}
+        />
+      </div>
+      {hasCaption && <figcaption><slot /></figcaption>}
+    </figure>
+  )
+}
+
+<style lang="scss">
+  .image-carousel {
+    margin: 1.5rem auto;
+    width: min(100%, var(--carousel-max-width));
+  }
+
+  .image-carousel-frame {
+    overflow: hidden;
+    border: 1px solid $color-accent-1;
+    border-radius: 10px;
+    background: rgba($color-primary, 0.35);
+    cursor: pointer;
+  }
+
+  figcaption {
+    margin-top: 0.5rem;
+    text-align: center;
+    font-style: italic;
+    color: $color-text;
+  }
+</style>
