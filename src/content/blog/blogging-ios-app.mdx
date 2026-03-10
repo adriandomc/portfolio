@@ -6,6 +6,8 @@ date: 2026-03-06
 draft: false
 ---
 
+import ImageCarousel from '/src/components/ImageCarousel.astro';
+
 For a long time I've been wanting to have a functional and active blog, to share things that may be useful for other people or just for the sake of expressing myself out. While I was in the process of designing this portfolio website, I was thinking of a straightforward way to create blog posts from my mobile devices.
 
 My first thought was using some kind of admin dashboard, similar to a CMS (Content Management System), where I could manage posts creation, but this solution would imply being connected or at least connecting through the web browser to commit changes. Also, in order to keep the website updated, it needs the changes to be pushed through Github, that's the way the build process is triggered on Coolify.
@@ -21,6 +23,28 @@ The angular stone of this project is the Git integration, which was made possibl
 
 ## What it can (currently) do
 
-The workflow is pretty simple yet very specific for my use case. It all starts with cloning a new repo.
+The workflow is pretty simple yet very specific for my use case. It all starts with cloning a new repository, if it is private then it requires a Personal Access Token (PAT). Once the repository is cloned, the app will show the files that reside within it, allowing to open and edit files. Then the user is able to commit and push changes to the remote repository.
 
+In my case, doing this whole workflow, allows me to effectively trigger a new deployment of my website on Coolify. That way, I can create and edit blog posts from the comfort of my iPhone. Below there are some screenshots of the app in action.
 
+<ImageCarousel
+	images={[
+		{
+			src: '/assets/blog/blogging-ios-app/clone-repo.png',
+			alt: 'Cloning a new repository',
+		},
+		{
+			src: '/assets/blog/blogging-ios-app/file-explorer.png',
+			alt: 'Browsing the repository files in the app',
+		},
+		{
+			src: '/assets/blog/blogging-ios-app/editor.png',
+			alt: 'Editing a markdown file from the iPhone',
+		},
+	]}
+	maxWidth="24rem"
+	aspectRatio="9 / 19.5"
+	objectFit="contain"
+>
+	Dinoblogger workflow: cloning the repository, browsing files and editing posts from the iPhone.
+</ImageCarousel>
