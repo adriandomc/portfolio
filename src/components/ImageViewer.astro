@@ -75,7 +75,16 @@
   });
 
   document.querySelectorAll<HTMLElement>("[data-image-viewer]").forEach((el) => {
-    el.addEventListener("click", () => {
+    el.addEventListener("click", (e) => {
+      const path = e.composedPath();
+      const isNavClick = path.some((node) =>
+        node instanceof HTMLElement &&
+        (node.classList.contains("swiper-button-prev") ||
+         node.classList.contains("swiper-button-next") ||
+         node.classList.contains("swiper-pagination") ||
+         node.classList.contains("swiper-pagination-bullet"))
+      );
+      if (isNavClick) return;
       const items = JSON.parse(el.dataset.imageViewer || "[]") as ImageItem[];
       let start = parseInt(el.dataset.imageViewerIndex || "0", 10);
       const swiper = el.querySelector("swiper-container") as any;
