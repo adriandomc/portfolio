@@ -6,18 +6,36 @@ interface ImageItem {
 
 interface Props {
   images: ImageItem[];
+  navigation?: boolean;
+  pagination?: boolean;
+  autoplay?: boolean;
+  autoplayDelay?: number;
+  aspectRatio?: string;
+  objectFit?: "fill" | "contain" | "cover";
 }
 
-const { images } = Astro.props;
+const {
+  images,
+  navigation = false,
+  pagination = false,
+  autoplay = true,
+  autoplayDelay = 2500,
+  aspectRatio = "auto",
+  objectFit = "fill",
+} = Astro.props;
 ---
 
 <swiper-container
   effect="fade"
   fade-effect-cross-fade="true"
-  autoplay-delay="2500"
-  autoplay-disable-on-interaction="false"
+  autoplay={autoplay ? "true" : undefined}
+  autoplay-delay={autoplay ? autoplayDelay : undefined}
+  autoplay-disable-on-interaction={autoplay ? "false" : undefined}
   loop="true"
   speed="800"
+  navigation={navigation}
+  pagination={pagination}
+  style={`--slideshow-aspect-ratio: ${aspectRatio}; --slideshow-object-fit: ${objectFit};`}
 >
   {images.map((image) => (
     <swiper-slide>
@@ -35,6 +53,12 @@ const { images } = Astro.props;
   swiper-container {
     width: 100%;
     height: 100%;
+    aspect-ratio: var(--slideshow-aspect-ratio);
+    --swiper-navigation-color: #{$color-white};
+    --swiper-pagination-color: #{$color-white};
+    --swiper-pagination-bullet-inactive-color: rgba(255, 255, 255, 0.5);
+    --swiper-pagination-bullet-inactive-opacity: 1;
+    --swiper-navigation-size: 1.5rem;
   }
 
   swiper-slide {
@@ -46,6 +70,29 @@ const { images } = Astro.props;
   swiper-slide img {
     width: 100%;
     height: 100%;
-    object-fit: fill;
+    object-fit: var(--slideshow-object-fit);
+  }
+
+  swiper-container::part(button-prev),
+  swiper-container::part(button-next) {
+    width: 2rem;
+    height: 2rem;
+    padding: 0.5rem;
+    margin-top: 0;
+    transform: translateY(-50%);
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
+    transition: background 0.15s ease, opacity 0.15s ease;
+    opacity: 0.7;
+  }
+
+  swiper-container:hover::part(button-prev),
+  swiper-container:hover::part(button-next) {
+    opacity: 1;
+  }
+
+  swiper-container::part(pagination) {
+    bottom: 0.75rem;
   }
 </style>
