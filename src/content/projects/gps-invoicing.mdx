@@ -1,0 +1,41 @@
+---
+title: "Admin dashboard for GPS and invoicing system"
+description: "An admin dashboard for a GPS and invoicing system, with unit deactivation, billing control and services reports, with custom charts and useful insights. Featuring API integration with third party services like Paypal for invoice payment, among others."
+tags: ["PHP", "jQuery", "Chart.js", "Tailwind", "Node.js", "MySQL"]
+images:
+  - src: "/images/projects/gps-invoicing/1.png"
+    alt: "Admin dashboard with units and equipment metrics, total balance and support contact information"
+  - src: "/images/projects/gps-invoicing/2.png"
+    alt: "Invoice control panel with payment details, digital invoice generation and Paypal integration"
+  - src: "/images/projects/gps-invoicing/3.png"
+    alt: "Custom monitoring dashboard with charts and insights about units and GPS alerts"
+featured: true
+order: 4
+---
+
+import ImageCarousel from '/src/components/ImageCarousel.astro';
+
+<ImageCarousel
+	images={[
+		{ src: '/images/projects/gps-invoicing/1.png', alt: 'Admin dashboard with metrics' },
+		{ src: '/images/projects/gps-invoicing/2.png', alt: 'Invoice control with Paypal' },
+		{ src: '/images/projects/gps-invoicing/3.png', alt: 'Monitoring charts and insights' },
+	]}
+	aspectRatio="16 / 10"
+	objectFit="contain"
+>
+	Metrics dashboard, invoice control and custom monitoring charts.
+</ImageCarousel>
+
+An internal admin panel for a company that operates both a **GPS tracking service** and the invoicing around it. The goal was to consolidate the operational side (units, equipment, GPS alerts) and the financial side (invoices, payments) into one place so support staff and admins stop jumping between tools.
+
+## What it covers
+
+- **Admin dashboard** — top-level metrics for units and equipment, current balance, and quick access to support information.
+- **Invoice control** — detailed per-invoice view with payment history, **digital invoice generation** and direct payment through the **Paypal API**.
+- **Service reports and monitoring** — custom **Chart.js** visualizations that aggregate unit status and GPS alerts over time so trends are easy to spot.
+- **Unit deactivation** — a safe flow to suspend units without losing historical records.
+
+## Stack
+
+**PHP + MySQL** on the backend, with a **Node.js** layer dedicated to third-party integrations like Paypal. The frontend is **jQuery** with **Chart.js** for visualizations and **Tailwind** for styling.

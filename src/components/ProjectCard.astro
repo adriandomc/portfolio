@@ -1,4 +1,5 @@
 ---
+import { ArrowRight } from "@lucide/svelte";
 import Badge from "./Badge.astro";
 import ImageSlideshow from "./ImageSlideshow.astro";
 
@@ -12,10 +13,11 @@ interface Props {
   description: string;
   images?: ImageItem[];
   href?: string;
+  detailHref?: string;
   tags?: string[];
 }
 
-const { title, description, images = [], href, tags = [] } = Astro.props;
+const { title, description, images = [], href, detailHref, tags = [] } = Astro.props;
 ---
 
 <article class="project-card">
@@ -44,7 +46,11 @@ const { title, description, images = [], href, tags = [] } = Astro.props;
   }
   <div class="project-body">
     <h3 class="project-title">
-      {href ? <a href={href} target="_blank" rel="noopener noreferrer">{title}</a> : title}
+      {href ? (
+        <a href={href} target="_blank" rel="noopener noreferrer">{title}</a>
+      ) : (
+        title
+      )}
     </h3>
     <p class="project-description">{description}</p>
     {
@@ -53,6 +59,15 @@ const { title, description, images = [], href, tags = [] } = Astro.props;
           {tags.map((tag) => (
             <Badge title={tag} />
           ))}
+        </div>
+      )
+    }
+    {
+      detailHref && (
+        <div class="project-action">
+          <a class="project-action-link" href={detailHref} aria-label="See project">
+            <ArrowRight />
+          </a>
         </div>
       )
     }
@@ -66,6 +81,9 @@ const { title, description, images = [], href, tags = [] } = Astro.props;
     border-radius: 5px;
     overflow: hidden;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 
     &:hover {
       transform: translateY(-2px);
@@ -97,7 +115,7 @@ const { title, description, images = [], href, tags = [] } = Astro.props;
     background-color: $color-secondary;
 
     span {
-      font-size: 3rem;
+      font-size: $fs-5xl;
       font-weight: 800;
       color: $color-accent-1;
       opacity: 0.5;
@@ -106,10 +124,13 @@ const { title, description, images = [], href, tags = [] } = Astro.props;
 
   .project-body {
     padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
   }
 
   .project-title {
-    font-size: 1.1rem;
+    font-size: $fs-lg;
     margin-bottom: 0.5rem;
 
     a {
@@ -125,7 +146,7 @@ const { title, description, images = [], href, tags = [] } = Astro.props;
   }
 
   .project-description {
-    font-size: 0.85rem;
+    font-size: $fs-sm;
     color: color.adjust($color-accent-1, $lightness: -10%);
     line-height: 1.5;
   }
@@ -135,5 +156,33 @@ const { title, description, images = [], href, tags = [] } = Astro.props;
     flex-wrap: wrap;
     gap: 0.4rem;
     margin-top: 0.75rem;
+  }
+
+  .project-action {
+    margin-top: auto;
+    padding-top: 1rem;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .project-action-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background-color: $color-primary;
+    border: 2px solid $color-accent-1;
+    color: $color-text;
+    transition: background-color 0.2s ease, color 0.2s ease,
+      border-color 0.2s ease, transform 0.2s ease;
+
+    &:hover {
+      background-color: $color-accent-2;
+      border-color: $color-accent-2;
+      color: $color-white;
+      transform: translateX(2px);
+    }
   }
 </style>

@@ -1,0 +1,61 @@
+---
+title: "Point of Sale Web Platform"
+description: "A web platform developed for a shoe store, with a realtime window-based interface, complete inventory control and custom tools like barcode, QR and tickets generator and a warehouse order system."
+tags: ["Meteor", "Typescript", "SCSS", "MongoDB", "Docker"]
+images:
+  - src: "/images/projects/zapa-pos/1.png"
+    alt: "Admin desktop view with quick shortcuts and status and navigation bars"
+  - src: "/images/projects/zapa-pos/2.png"
+    alt: "Products list view with bulk import, editing and advanced filters/sorting accessible from the column headers"
+  - src: "/images/projects/zapa-pos/3.png"
+    alt: "A purchases wizard that allows the user to make new product entries quickly"
+  - src: "/images/projects/zapa-pos/4.png"
+    alt: "A fully-featured QR/codebar/ticket editor for auto-contained editing within the platform"
+  - src: "/images/projects/zapa-pos/5.png"
+    alt: "POS system to process sales orders and print tickets"
+  - src: "/images/projects/zapa-pos/6.png"
+    alt: "A mobile first interface for store front personnel with camera scanner and fast access to inventory stock"
+  - src: "/images/projects/zapa-pos/7.png"
+    alt: "Warehouse orders to directly send products to be retrieved by warehouse users"
+  - src: "/images/projects/zapa-pos/8.png"
+    alt: "Window-based navigation with real-time updates via Websockets, for cashier and admin users"
+featured: true
+order: 2
+---
+
+import ImageCarousel from '/src/components/ImageCarousel.astro';
+
+<ImageCarousel
+	images={[
+		{ src: '/images/projects/zapa-pos/1.png', alt: 'Admin desktop' },
+		{ src: '/images/projects/zapa-pos/2.png', alt: 'Products list' },
+		{ src: '/images/projects/zapa-pos/3.png', alt: 'Purchases wizard' },
+		{ src: '/images/projects/zapa-pos/4.png', alt: 'QR/barcode/ticket editor' },
+		{ src: '/images/projects/zapa-pos/5.png', alt: 'POS' },
+		{ src: '/images/projects/zapa-pos/6.png', alt: 'Mobile storefront' },
+		{ src: '/images/projects/zapa-pos/7.png', alt: 'Warehouse orders' },
+		{ src: '/images/projects/zapa-pos/8.png', alt: 'Window-based navigation' },
+	]}
+	aspectRatio="16 / 10"
+	objectFit="contain"
+>
+	From the admin desktop to the mobile storefront and warehouse flows.
+</ImageCarousel>
+
+This platform was built to cover the day-to-day operations of a retail shoe store: a single source of truth shared across admins, cashiers, storefront personnel and the warehouse team, with every module connected in real time.
+
+## A desktop-like interface in the browser
+
+Navigation is **window-based**: any module can be opened in its own window, minimized, and reopened without losing state. It feels closer to a desktop OS than a typical web app, which makes it easy to work on multiple tasks at once — processing a sale while checking stock, for example. All windows stay in sync through **WebSockets**, so changes made by one user are reflected instantly for everyone else.
+
+## Core modules
+
+- **Inventory and catalog**: a products list with bulk import and editing, and advanced filters and sorting available directly from the column headers. A **purchases wizard** speeds up product entries during restocks.
+- **Point of Sale**: sales processing with ticket printing.
+- **Built-in code editor**: a fully-featured **QR, barcode and ticket editor** so label designs live inside the platform — no external tooling needed.
+- **Warehouse orders**: store personnel send orders directly to the warehouse team, with end-to-end tracking.
+- **Mobile-first storefront**: a touch-friendly interface for floor staff with a **camera-based scanner** and quick access to inventory stock.
+
+## Stack
+
+Built on **Meteor + TypeScript** (chosen for its reactive, WebSocket-first data flow), with **MongoDB** as the database, **SCSS** for styling and **Docker** for deployment.

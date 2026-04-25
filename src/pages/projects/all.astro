@@ -1,0 +1,215 @@
+---
+import { ArrowRight } from "@lucide/svelte";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Menu from "../../components/Menu.astro";
+import { getCollection } from "astro:content";
+
+const title = "All Projects";
+
+const projects = (await getCollection("projects", ({ data }) => !data.draft))
+  .sort((a, b) => (a.data.order ?? Infinity) - (b.data.order ?? Infinity));
+---
+
+<BaseLayout title={title} description="Adrián's Projects">
+  <Menu activeItem="Projects" />
+  <main id="main-content">
+    <a href="/projects" class="back-link">&larr; Back to projects</a>
+    <h1>All Projects</h1>
+    <ul class="project-list">
+      {
+        projects.map((project) => {
+          const detailHref = project.body?.trim()
+            ? `/projects/${project.id}`
+            : undefined;
+          const externalHref = project.data.href;
+          const firstImage = project.data.images?.[0];
+          const name = externalHref ? (
+            <a href={externalHref} target="_blank" rel="noopener noreferrer">
+              {project.data.title}
+            </a>
+          ) : (
+            <span>{project.data.title}</span>
+          );
+          return (
+            <li>
+              <div class="project-thumb">
+                {firstImage ? (
+                  <img
+                    src={firstImage.src}
+                    alt={firstImage.alt}
+                    loading="lazy"
+                  />
+                ) : (
+                  <span class="thumb-placeholder">
+                    {project.data.title.charAt(0)}
+                  </span>
+                )}
+              </div>
+              <div class="project-info">
+                <span class="project-name">{name}</span>
+                <span class="separator">:</span>
+                <span class="project-excerpt">
+                  {project.data.description}
+                </span>
+              </div>
+              {detailHref && (
+                <div class="project-action">
+                  <a
+                    class="project-action-link"
+                    href={detailHref}
+                    aria-label="See project"
+                  >
+                    <ArrowRight />
+                  </a>
+                </div>
+              )}
+            </li>
+          );
+        })
+      }
+    </ul>
+  </main>
+</BaseLayout>
+
+<style lang="scss">
+  main {
+    display: flex;
+    flex-direction: column;
+    margin-top: 2rem;
+  }
+
+  .back-link {
+    display: inline-block;
+    color: $color-accent-1;
+    text-decoration: none;
+    font-size: $fs-xl;
+    margin-bottom: 1rem;
+    transition: color 0.2s ease;
+
+    &:hover {
+      color: $color-accent-2;
+    }
+  }
+
+  h1 {
+    margin-bottom: 1.5rem;
+  }
+
+  .project-list {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.6rem 0.75rem;
+    background-color: $color-primary;
+    border: 1px solid $color-accent-1;
+    border-radius: 5px;
+    line-height: 1.5;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba($color-accent-1, 0.2);
+    }
+  }
+
+  .project-action {
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+
+  .project-action-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background-color: $color-primary;
+    border: 2px solid $color-accent-1;
+    color: $color-text;
+    transition: background-color 0.2s ease, color 0.2s ease,
+      border-color 0.2s ease, transform 0.2s ease;
+
+    &:hover {
+      background-color: $color-accent-2;
+      border-color: $color-accent-2;
+      color: $color-white;
+      transform: translateX(2px);
+    }
+  }
+
+  .project-thumb {
+    flex: 0 0 5rem;
+    width: 5rem;
+    height: 3.125rem;
+    overflow: hidden;
+    border: 1px solid $color-accent-1;
+    border-radius: 4px;
+    background-color: $color-secondary;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .project-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .thumb-placeholder {
+    font-size: $fs-2xl;
+    font-weight: 800;
+    color: $color-accent-1;
+    opacity: 0.5;
+  }
+
+  .project-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .project-name {
+    font-weight: 700;
+    flex-shrink: 0;
+
+    a {
+      color: $color-text;
+      text-decoration: underline;
+      text-decoration-thickness: 2px;
+      text-underline-offset: 2px;
+
+      &:hover {
+        color: color.adjust($color-text, $lightness: 20%);
+      }
+    }
+  }
+
+  .separator {
+    margin: 0 0.35rem;
+    color: $color-accent-1;
+  }
+
+  .project-excerpt {
+    color: color.adjust($color-accent-1, $lightness: -10%);
+    font-size: $fs-md;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+</style>

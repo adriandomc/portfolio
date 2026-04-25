@@ -42,6 +42,32 @@ h4,
 h5,
 h6 {
   margin: 0;
+  line-height: 1.3;
+}
+
+h1 {
+  font-size: $fs-3xl;
+
+  @include respond-to("tablet") {
+    font-size: $fs-4xl;
+  }
+}
+
+h2 {
+  font-size: $fs-2xl;
+}
+
+h3 {
+  font-size: $fs-xl;
+}
+
+h4 {
+  font-size: $fs-lg;
+}
+
+h5,
+h6 {
+  font-size: $fs-md;
 }
 
 p {

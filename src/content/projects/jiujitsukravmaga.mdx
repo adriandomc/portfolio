@@ -1,0 +1,40 @@
+---
+title: "Martial arts school website"
+description: "A landing page designed for a martial arts school, showcasing classes, schedule, and contact information."
+tags: ["Astro", "Tailwind", "JavaScript"]
+href: "https://jiujitsukravmaga.com.mx"
+images:
+  - src: "/images/projects/jiujitsukravmaga/1.png"
+    alt: "Home page of the martial arts school website, with information regarding the school"
+  - src: "/images/projects/jiujitsukravmaga/2.png"
+    alt: "Classes and schedule information with interactive images slideshow"
+  - src: "/images/projects/jiujitsukravmaga/3.png"
+    alt: "Contact information with Google Maps integration and social media links"
+featured: true
+---
+
+import ImageCarousel from '/src/components/ImageCarousel.astro';
+
+<ImageCarousel
+	images={[
+		{ src: '/images/projects/jiujitsukravmaga/1.png', alt: 'Home page' },
+		{ src: '/images/projects/jiujitsukravmaga/2.png', alt: 'Classes and schedule with slideshow' },
+		{ src: '/images/projects/jiujitsukravmaga/3.png', alt: 'Contact with Google Maps' },
+	]}
+	aspectRatio="16 / 10"
+	objectFit="contain"
+>
+	Home, classes with interactive slideshow, and contact page.
+</ImageCarousel>
+
+A landing page for a martial arts school offering Brazilian Jiu-Jitsu and Krav Maga. The brief was simple: prospective students should be able to learn about the school, check the weekly schedule and reach out — no sign-ups, no booking flows, just the essentials.
+
+## Sections
+
+- **Home** — school introduction and highlights.
+- **Classes and schedule** — class descriptions paired with an **interactive slideshow** and the weekly timetable.
+- **Contact** — contact details with a **Google Maps** embed and social media links.
+
+## Stack
+
+Built with **Astro** for static-first rendering, **Tailwind** for styling and a bit of **JavaScript** for the interactive pieces. The result is a site that loads fast on mobile — which is where most visitors arrive.

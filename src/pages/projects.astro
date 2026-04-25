@@ -3,26 +3,33 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import Menu from "../components/Menu.astro";
 import ProjectCard from "../components/ProjectCard.astro";
 import ImageViewer from "../components/ImageViewer.astro";
-
-import projects from "../data/projects.json";
+import { getCollection } from "astro:content";
 
 const title = "Projects";
+
+const projects = (await getCollection("projects", ({ data }) => !data.draft && data.featured))
+  .sort((a, b) => (a.data.order ?? Infinity) - (b.data.order ?? Infinity))
+  .slice(0, 6);
 ---
 
 <BaseLayout title={title} description="Projects by Adrián Domínguez — a showcase of web development work.">
   <Menu activeItem="Projects" />
   <main id="main-content">
-    <h1>Projects</h1>
+    <div class="heading-row">
+      <h1>Projects</h1>
+      <a href="/projects/all" class="show-all-link">Show all projects &rarr;</a>
+    </div>
     <span class="info-text">(Click on images for full-size view)</span>
     <div class="projects-grid">
       {
         projects.map((project) => (
           <ProjectCard
-            title={project.title}
-            description={project.description}
-            tags={project.tags}
-            images={project.images}
-            href={project.href}
+            title={project.data.title}
+            description={project.data.description}
+            tags={project.data.tags}
+            images={project.data.images}
+            href={project.data.href}
+            detailHref={project.body?.trim() ? `/projects/${project.id}` : undefined}
           />
         ))
       }
@@ -38,10 +45,29 @@ const title = "Projects";
     margin-top: 2rem;
   }
 
+  .heading-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .show-all-link {
+    color: $color-accent-1;
+    text-decoration: none;
+    font-size: $fs-xl;
+    transition: color 0.2s ease;
+
+    &:hover {
+      color: $color-accent-2;
+    }
+  }
+
   .info-text {
     margin-bottom: 1.5rem;
     color: $color-accent-1;
-    font-size: 0.85rem;
+    font-size: $fs-sm;
     font-style: italic;
   }
 

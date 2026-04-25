@@ -1,0 +1,40 @@
+---
+title: "Personal Website"
+description: "A minimalist, low-resource website made with a Dinotext parser, a custom markup language, which allows to create new pages in a matter of seconds."
+tags: ["PHP", "CSS", "Dinotext"]
+href: "https://adriandomc.com"
+images:
+  - src: "/images/projects/adriandomc/1.png"
+    alt: "Home page of my personal website"
+  - src: "/images/projects/adriandomc/2.png"
+    alt: "Music page of my personal website, with information about my songs"
+  - src: "/images/projects/adriandomc/3.png"
+    alt: "A song page made with Dinotext, with images, formatted text and hyperlinks"
+featured: true
+order: 5
+---
+
+import ImageCarousel from '/src/components/ImageCarousel.astro';
+
+<ImageCarousel
+	images={[
+		{ src: '/images/projects/adriandomc/1.png', alt: 'Home page' },
+		{ src: '/images/projects/adriandomc/2.png', alt: 'Music page' },
+		{ src: '/images/projects/adriandomc/3.png', alt: 'A song page rendered from Dinotext' },
+	]}
+	aspectRatio="16 / 10"
+	objectFit="contain"
+>
+	Home, music section and a song page rendered from Dinotext.
+</ImageCarousel>
+
+[adriandomc.com](https://adriandomc.com) is where I keep personal content: music, writings and other stuff. The main goal was to make publishing a new page as lightweight as possible, while keeping the site itself fast on any connection.
+For this purpose, I wrote [Dinotext](/projects/dinotext), which is a simple markup language, featuring only the features I use: headings, formatted text, images and hyperlinks. A PHP parser turns each text file into a rendered page, which in turn is compiled into a normal PHP page (this is done at runtime, it is not serving an HTML page).
+
+This project will remain in constant update, however the stack will be left as is, just to reflect its simplicity and fear of change(?
+
+## Stack
+
+- **PHP**: no framework, handles the routing (a single index.php which acts as the router) and rendering through the Dinotext parser
+- **CSS**: styling using vanilla CSS, uses a mini-CDN to serve it to different websites
+- **Coolify**: server-side Nixpacks deployment and CI/CD through Github Webhooks

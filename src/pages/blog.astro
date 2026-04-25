@@ -97,12 +97,12 @@ const posts = (await getCollection("blog", ({ data }) => !data.draft)).sort(
 
   .post-card-content {
     h2 {
-      font-size: 1.25rem;
+      font-size: $fs-xl;
       margin-bottom: 0.25rem;
     }
 
     time {
-      font-size: 0.95rem;
+      font-size: $fs-md;
       color: $color-accent-1;
     }
 

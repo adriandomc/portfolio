@@ -9,6 +9,19 @@ $color-text: #253207;
 $color-link: #4e5e26;
 $color-white: #ffffff;
 
+// Typography scale. Base html font-size scales responsively (14→15→16px)
+// in base.scss, so every rem-based token below scales with it.
+$fs-xs:  0.75rem;   // micro copy (footer copyright)
+$fs-sm:  0.875rem;  // small UI (buttons, badges, code blocks, footer links)
+$fs-md:  1rem;      // body, captions, excerpts, menu items, dates
+$fs-lg:  1.125rem;  // card titles, emphasized body
+$fs-xl:  1.25rem;   // back-links, nav links, content h3, list card titles
+$fs-2xl: 1.5rem;    // content h2, menu logo
+$fs-3xl: 2rem;      // h1 (mobile), viewer controls
+$fs-4xl: 2.5rem;    // h1 (tablet+)
+$fs-5xl: 3rem;      // large placeholder glyphs
+$fs-6xl: 5rem;      // hero display (404)
+
 $breakpoint-mobile: 480px;
 $breakpoint-tablet: 768px;
 $breakpoint-desktop: 1200px;

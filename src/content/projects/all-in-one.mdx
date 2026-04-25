@@ -1,0 +1,40 @@
+---
+title: "Unit tracking tools"
+description: "A set of visualization tools developed for an All in One platform, for a company in the industry of personnel transportation, consisting of a timeline tracker, realtime unit tracker and a time report generator with geofences and stop markers."
+tags: ["PHP", "jQuery", "Leaflet", "CSS", "Node.js", "MySQL"]
+images:
+  - src: "/images/projects/all-in-one/1.png"
+    alt: "A timeline tracker designed to see the current stop the bus unit is currently on"
+  - src: "/images/projects/all-in-one/2.png"
+    alt: "Map visualizer which is updated in real time, showing the unit position and stops marker"
+  - src: "/images/projects/all-in-one/3.png"
+    alt: "A time report generated with every position of the bus during its journey"
+featured: true
+order: 3
+---
+
+import ImageCarousel from '/src/components/ImageCarousel.astro';
+
+<ImageCarousel
+	images={[
+		{ src: '/images/projects/all-in-one/1.png', alt: 'Timeline tracker' },
+		{ src: '/images/projects/all-in-one/2.png', alt: 'Real-time map visualizer' },
+		{ src: '/images/projects/all-in-one/3.png', alt: 'Time report with positions and stops' },
+	]}
+	aspectRatio="16 / 10"
+	objectFit="contain"
+>
+	Timeline tracker, live map and journey report.
+</ImageCarousel>
+
+Built as part of an All-in-One platform for a **personnel transportation company**, where operations teams needed to monitor bus units in real time and generate journey and bus capacity reports. It had a companion mobile app for workers to track the real time location of the units, while each unit was equipped with an RFID card reader, allowing the users to check their bus boarding.
+
+I worked on this platform throughout my time working at [WAAK Technologies](https://waak.mx). It was mostly built using PHP, used for server-side rendered pages and backend scripting, jQuery for the dynamic interfaces and for the real time map visualization tools, Leaflet and Node.js was used, which allowed to have a constant and reliable communication with the GPS location third-party provider. The relevant tools I built are as follows:
+
+- **Timeline tracker**: a timeloine view that highlights the stop each unit is currently at, as well as their planned route.
+- **Live map**: unit positions shown in real time onto a **Leaflet** map, with stop markers and route lines, making its journey easier to check.
+- **Time report generator**: takes every recorded position of a journey (updated every 10 seconds) and produces a detailed report with geofences and stop crossings, useful for audits and better route planning (detect what are the most used stops, better route planning and gas savings).
+
+## Stack
+
+**PHP + MySQL** on the backend, with a small **Node.js** handling the real-time position API. On the frontend, **jQuery** and **Leaflet**, kept simple to fit cleanly into the existing All-in-One platform, where I also contributed with other features ranging from dev tools for easier debugging and real time bus assignation timetables using **Alpine.js**.

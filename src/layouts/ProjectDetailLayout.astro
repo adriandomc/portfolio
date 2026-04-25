@@ -7,39 +7,46 @@ import ImageViewer from "../components/ImageViewer.astro";
 interface Props {
   title: string;
   description: string;
-  date: Date;
   tags?: string[];
+  href?: string;
 }
 
-const { title, description, date, tags = [] } = Astro.props;
-const formattedDate = date.toLocaleDateString("en-US", {
-  year: "numeric",
-  month: "long",
-  day: "numeric",
-});
+const { title, description, tags = [], href } = Astro.props;
 ---
 
 <BaseLayout title={title} description={description}>
-  <Menu activeItem="Blog" />
+  <Menu activeItem="Projects" />
   <main id="main-content">
-    <article class="blog-post">
-      <header class="post-header">
-        <a href="/blog" class="back-link">&larr; Back to blog</a>
+    <article class="project-detail">
+      <header class="detail-header">
+        <a href="/projects" class="back-link">&larr; Back to projects</a>
         <h1>{title}</h1>
-        <div class="post-meta">
-          <time datetime={date.toISOString()}>{formattedDate}</time>
-          {
-            tags.length > 0 && (
-              <div class="post-tags">
-                {tags.map((tag) => (
-                  <Badge title={tag} />
-                ))}
-              </div>
-            )
-          }
-        </div>
+        <p class="detail-description">{description}</p>
+        {
+          (tags.length > 0 || href) && (
+            <div class="detail-meta">
+              {tags.length > 0 && (
+                <div class="detail-tags">
+                  {tags.map((tag) => (
+                    <Badge title={tag} />
+                  ))}
+                </div>
+              )}
+              {href && (
+                <a
+                  href={href}
+                  class="visit-site"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Visit site &#8599;
+                </a>
+              )}
+            </div>
+          )
+        }
       </header>
-      <div class="post-content">
+      <div class="detail-content">
         <slot />
       </div>
     </article>
@@ -48,7 +55,7 @@ const formattedDate = date.toLocaleDateString("en-US", {
 </BaseLayout>
 
 <style lang="scss">
-  .blog-post {
+  .project-detail {
     margin-top: 2rem;
     max-width: 50rem;
     margin-inline: auto;
@@ -67,7 +74,7 @@ const formattedDate = date.toLocaleDateString("en-US", {
     }
   }
 
-  .post-header {
+  .detail-header {
     margin-bottom: 2rem;
     padding-bottom: 1.5rem;
     border-bottom: 1px solid $color-accent-1;
@@ -77,24 +84,41 @@ const formattedDate = date.toLocaleDateString("en-US", {
     }
   }
 
-  .post-meta {
+  .detail-description {
+    color: color.adjust($color-accent-1, $lightness: -10%);
+    line-height: 1.6;
+    margin-bottom: 1rem;
+  }
+
+  .detail-meta {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 1rem;
-
-    time {
-      color: $color-accent-1;
-    }
   }
 
-  .post-tags {
+  .detail-tags {
     display: flex;
     flex-wrap: wrap;
     gap: 0.4rem;
   }
 
-  .post-content {
+  .visit-site {
+    color: $color-accent-1;
+    text-decoration: none;
+    font-size: $fs-md;
+    border: 1px solid $color-accent-1;
+    border-radius: 5px;
+    padding: 0.35rem 0.75rem;
+    transition: color 0.2s ease, border-color 0.2s ease;
+
+    &:hover {
+      color: $color-accent-2;
+      border-color: $color-accent-2;
+    }
+  }
+
+  .detail-content {
     line-height: 1.8;
 
     :global(h2) {
