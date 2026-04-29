@@ -1,0 +1,97 @@
+---
+export const prerender = false;
+
+import AdminLayout from "../../../layouts/AdminLayout.astro";
+import PostEditor from "../../../components/admin/PostEditor.svelte";
+import {
+  COLLECTIONS,
+  type Collection,
+  emptyPost,
+  getPost,
+  type PostDetail,
+} from "../../../lib/admin/posts";
+import { mdxToTiptap } from "../../../lib/admin/mdx/parse";
+import type { TiptapDoc } from "../../../lib/admin/mdx/types";
+
+const { collection, slug } = Astro.params;
+if (!collection || !COLLECTIONS.includes(collection as Collection)) {
+  return Astro.redirect("/admin");
+}
+const col = collection as Collection;
+
+const isNew = slug === "new";
+let post: PostDetail | null = null;
+let loadError: string | null = null;
+
+if (!slug) return Astro.redirect(`/admin/${col}`);
+
+if (isNew) {
+  post = emptyPost(col, "");
+} else {
+  try {
+    post = await getPost(col, slug);
+  } catch (err) {
+    loadError = err instanceof Error ? err.message : "Failed to load post.";
+  }
+  if (!post && !loadError) {
+    return Astro.redirect(`/admin/${col}`);
+  }
+}
+
+const initialDoc: TiptapDoc = post
+  ? mdxToTiptap(post.body)
+  : { type: "doc", content: [{ type: "paragraph" }] };
+---
+
+<AdminLayout title={isNew ? `New ${col === "blog" ? "post" : "project"}` : post?.title || "Edit"}>
+  <div class="editor-page">
+    <div class="breadcrumbs">
+      <a href={`/admin/${col}`}>← Back to {col}</a>
+    </div>
+
+    {loadError && <p class="error">{loadError}</p>}
+
+    {post && (
+      <PostEditor
+        client:load
+        collection={col}
+        slug={isNew ? "" : slug}
+        isNew={isNew}
+        initialDoc={initialDoc}
+        initialFrontmatter={post.frontmatter}
+        initialSha={post.sha}
+      />
+    )}
+  </div>
+</AdminLayout>
+
+<style lang="scss">
+  .editor-page {
+    max-width: 60rem;
+    margin: 0 auto;
+    padding: 0 1rem;
+  }
+
+  .breadcrumbs {
+    margin-bottom: 1rem;
+    font-size: $fs-sm;
+
+    a {
+      color: $color-accent-1;
+      text-decoration: none;
+
+      &:hover {
+        color: $color-text;
+      }
+    }
+  }
+
+  .error {
+    background-color: $color-error;
+    color: $color-white;
+    border-radius: 3px;
+    padding: 0.6rem 0.85rem;
+    font-size: $fs-sm;
+    margin-bottom: 1rem;
+  }
+</style>
