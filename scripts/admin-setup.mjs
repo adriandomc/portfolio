@@ -2,7 +2,7 @@
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import { randomBytes } from "node:crypto";
-import argon2 from "argon2";
+import { argon2id } from "hash-wasm";
 import { Secret } from "otpauth";
 import qrcode from "qrcode";
 
@@ -40,7 +40,15 @@ async function main() {
     process.exit(1);
   }
 
-  const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
+  const passwordHash = await argon2id({
+    password,
+    salt: new Uint8Array(randomBytes(16)),
+    parallelism: 1,
+    iterations: 3,
+    memorySize: 65536,
+    hashLength: 32,
+    outputType: "encoded",
+  });
   const totpSecret = new Secret({ size: 20 }).base32;
   const sessionSecret = randomBytes(32).toString("hex");
 
