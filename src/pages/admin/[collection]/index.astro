@@ -1,0 +1,183 @@
+---
+export const prerender = false;
+
+import AdminLayout from "../../../layouts/AdminLayout.astro";
+import { COLLECTIONS, listPosts, type Collection } from "../../../lib/admin/posts";
+
+const { collection } = Astro.params;
+if (!collection || !COLLECTIONS.includes(collection as Collection)) {
+  return Astro.redirect("/admin");
+}
+const col = collection as Collection;
+
+let posts: Awaited<ReturnType<typeof listPosts>> = [];
+let loadError: string | null = null;
+try {
+  posts = await listPosts(col);
+} catch (err) {
+  loadError = err instanceof Error ? err.message : "Failed to load posts.";
+}
+
+const labels: Record<Collection, string> = {
+  blog: "Blog posts",
+  projects: "Projects",
+};
+---
+
+<AdminLayout title={labels[col]}>
+  <section class="list">
+    <header class="list-header">
+      <h1>{labels[col]}</h1>
+      <a class="btn" href={`/admin/${col}/new`}>New {col === "blog" ? "post" : "project"}</a>
+    </header>
+
+    {loadError && <p class="error">{loadError}</p>}
+
+    {posts.length === 0 && !loadError && (
+      <p class="empty">No posts yet.</p>
+    )}
+
+    <ul class="post-list">
+      {posts.map((post) => (
+        <li class="post-row">
+          <a class="post-link" href={`/admin/${col}/${post.slug}`}>
+            <div class="post-main">
+              <span class="post-title">{post.title || "(untitled)"}</span>
+              <span class="post-desc">{post.description}</span>
+            </div>
+            <div class="post-meta">
+              {post.draft && <span class="badge draft">Draft</span>}
+              {post.date && <span class="post-date">{post.date}</span>}
+            </div>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </section>
+</AdminLayout>
+
+<style lang="scss">
+  .list {
+    max-width: 60rem;
+    margin: 0 auto;
+    padding: 0 1rem;
+  }
+
+  .list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  h1 {
+    margin: 0;
+  }
+
+  .error {
+    background-color: $color-error;
+    color: $color-white;
+    border-radius: 3px;
+    padding: 0.6rem 0.85rem;
+    font-size: $fs-sm;
+  }
+
+  .empty {
+    color: $color-accent-1;
+    font-size: $fs-sm;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    background-color: $color-accent-1;
+    color: $color-white;
+    border-radius: 9999px;
+    padding: 0.5rem 1.25rem;
+    font-size: $fs-sm;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+      background-color: $color-text;
+    }
+  }
+
+  .post-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .post-row {
+    background-color: $color-primary;
+    border: 1px solid $color-accent-1;
+    border-radius: 5px;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+      background-color: $color-secondary;
+    }
+  }
+
+  .post-link {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.85rem 1rem;
+    text-decoration: none;
+    color: $color-text;
+  }
+
+  .post-main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .post-title {
+    font-weight: 600;
+    font-size: $fs-md;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .post-desc {
+    font-size: $fs-sm;
+    color: $color-accent-1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .post-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+    flex-shrink: 0;
+  }
+
+  .post-date {
+    font-size: $fs-xs;
+    color: $color-accent-1;
+  }
+
+  .badge {
+    font-size: $fs-xs;
+    background-color: $color-warning;
+    color: $color-text;
+    padding: 0.15rem 0.5rem;
+    border-radius: 9999px;
+    font-weight: 600;
+  }
+</style>

@@ -1,0 +1,139 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+
+const nextParam = Astro.url.searchParams.get("next") ?? "/admin";
+const errorParam = Astro.url.searchParams.get("error");
+
+const errorMessages: Record<string, string> = {
+  invalid: "Invalid credentials.",
+  ratelimit: "Too many attempts. Try again in a few minutes.",
+  totp: "Invalid 2FA code.",
+  config: "Server is not configured. Run admin:setup.",
+};
+const errorMessage = errorParam ? errorMessages[errorParam] ?? "Login failed." : null;
+---
+
+<AdminLayout title="Login" showNav={false}>
+  <div class="login-wrap">
+    <div class="login-card">
+      <h1>Admin login</h1>
+      <p class="hint">Enter your password and 2FA code.</p>
+      {errorMessage && <p class="error" role="alert">{errorMessage}</p>}
+      <form method="post" action="/api/admin/login">
+        <input type="hidden" name="next" value={nextParam} />
+        <label>
+          <span>Password</span>
+          <input
+            type="password"
+            name="password"
+            autocomplete="current-password"
+            required
+            autofocus
+          />
+        </label>
+        <label>
+          <span>2FA code</span>
+          <input
+            type="text"
+            name="totp"
+            inputmode="numeric"
+            pattern="[0-9]{6}"
+            maxlength="6"
+            autocomplete="one-time-code"
+            required
+          />
+        </label>
+        <button type="submit">Sign in</button>
+      </form>
+    </div>
+  </div>
+</AdminLayout>
+
+<style lang="scss">
+  .login-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 80vh;
+    padding: 2rem 1rem;
+  }
+
+  .login-card {
+    background-color: $color-primary;
+    border: 1px solid $color-accent-1;
+    border-radius: 5px;
+    padding: 2rem;
+    width: 100%;
+    max-width: 26rem;
+  }
+
+  h1 {
+    margin: 0 0 0.25rem;
+    font-size: $fs-2xl;
+  }
+
+  .hint {
+    margin: 0 0 1.25rem;
+    font-size: $fs-sm;
+    color: $color-accent-1;
+  }
+
+  .error {
+    background-color: $color-error;
+    color: $color-white;
+    border-radius: 3px;
+    padding: 0.5rem 0.75rem;
+    font-size: $fs-sm;
+    margin-bottom: 1rem;
+  }
+
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: $fs-sm;
+  }
+
+  label span {
+    font-weight: 600;
+  }
+
+  input {
+    font-family: "JetBrains Mono", monospace;
+    font-size: $fs-md;
+    padding: 0.55rem 0.75rem;
+    border-radius: 3px;
+    border: 1px solid $color-accent-1;
+    background-color: $color-white;
+    color: $color-text;
+
+    &:focus-visible {
+      outline: 2px solid $color-accent-2;
+      outline-offset: 2px;
+    }
+  }
+
+  button {
+    margin-top: 0.5rem;
+    background-color: $color-accent-1;
+    color: $color-white;
+    border: none;
+    border-radius: 9999px;
+    padding: 0.6rem 1.25rem;
+    font-family: "JetBrains Mono", monospace;
+    font-size: $fs-sm;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+      background-color: $color-text;
+    }
+  }
+</style>

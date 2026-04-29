@@ -1,0 +1,149 @@
+---
+export const prerender = false;
+
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import { listPosts } from "../../lib/admin/posts";
+
+let blogPosts: Awaited<ReturnType<typeof listPosts>> = [];
+let projectPosts: Awaited<ReturnType<typeof listPosts>> = [];
+let loadError: string | null = null;
+try {
+  [blogPosts, projectPosts] = await Promise.all([
+    listPosts("blog"),
+    listPosts("projects"),
+  ]);
+} catch (err) {
+  loadError = err instanceof Error ? err.message : "Failed to load posts.";
+}
+
+const stats = {
+  blogTotal: blogPosts.length,
+  blogDrafts: blogPosts.filter((p) => p.draft).length,
+  projectTotal: projectPosts.length,
+  projectDrafts: projectPosts.filter((p) => p.draft).length,
+};
+---
+
+<AdminLayout title="Dashboard">
+  <section class="dashboard">
+    <h1>Dashboard</h1>
+    {loadError && <p class="error">{loadError}</p>}
+
+    <div class="stats">
+      <a class="stat" href="/admin/blog">
+        <span class="stat-label">Blog posts</span>
+        <span class="stat-value">{stats.blogTotal}</span>
+        <span class="stat-sub">{stats.blogDrafts} drafts</span>
+      </a>
+      <a class="stat" href="/admin/projects">
+        <span class="stat-label">Projects</span>
+        <span class="stat-value">{stats.projectTotal}</span>
+        <span class="stat-sub">{stats.projectDrafts} drafts</span>
+      </a>
+    </div>
+
+    <div class="actions">
+      <a class="btn" href="/admin/blog/new">New blog post</a>
+      <a class="btn btn-secondary" href="/admin/projects/new">New project</a>
+    </div>
+  </section>
+</AdminLayout>
+
+<style lang="scss">
+  .dashboard {
+    max-width: 60rem;
+    margin: 0 auto;
+    padding: 0 1rem;
+  }
+
+  h1 {
+    margin-bottom: 1.5rem;
+  }
+
+  .error {
+    background-color: $color-error;
+    color: $color-white;
+    border-radius: 3px;
+    padding: 0.6rem 0.85rem;
+    font-size: $fs-sm;
+  }
+
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+
+    @include respond-to("tablet") {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  .stat {
+    background-color: $color-primary;
+    border: 1px solid $color-accent-1;
+    border-radius: 5px;
+    padding: 1.25rem;
+    text-decoration: none;
+    color: $color-text;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+      background-color: $color-secondary;
+    }
+  }
+
+  .stat-label {
+    font-size: $fs-sm;
+    color: $color-accent-1;
+  }
+
+  .stat-value {
+    font-size: $fs-3xl;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .stat-sub {
+    font-size: $fs-xs;
+    color: $color-accent-1;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    background-color: $color-accent-1;
+    color: $color-white;
+    border-radius: 9999px;
+    padding: 0.55rem 1.25rem;
+    font-size: $fs-sm;
+    font-weight: 600;
+    text-decoration: none;
+    border: 2px solid $color-accent-1;
+    transition: background-color 0.2s ease, color 0.2s ease;
+
+    &:hover {
+      background-color: $color-text;
+      border-color: $color-text;
+    }
+
+    &.btn-secondary {
+      background-color: transparent;
+      color: $color-text;
+
+      &:hover {
+        background-color: $color-text;
+        color: $color-white;
+      }
+    }
+  }
+</style>

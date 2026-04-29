@@ -1,0 +1,152 @@
+---
+import "../styles/base.scss";
+
+interface Props {
+  title: string;
+  showNav?: boolean;
+}
+
+const { title, showNav = true } = Astro.props;
+const pathname = Astro.url.pathname;
+
+const adminMenu = [
+  { title: "Dashboard", href: "/admin" },
+  { title: "Blog", href: "/admin/blog" },
+  { title: "Projects", href: "/admin/projects" },
+];
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
+      rel="stylesheet"
+    />
+    <title>{title} — Admin</title>
+  </head>
+  <body class="admin-body">
+    {
+      showNav && (
+        <header class="admin-header">
+          <nav aria-label="Admin navigation">
+            <div class="admin-brand">
+              <a href="/admin">ADC · Admin</a>
+            </div>
+            <div class="admin-links">
+              {adminMenu.map((item) => {
+                const active =
+                  item.href === "/admin"
+                    ? pathname === "/admin"
+                    : pathname.startsWith(item.href);
+                return (
+                  <a
+                    href={item.href}
+                    class={active ? "active" : ""}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    {item.title}
+                  </a>
+                );
+              })}
+              <form method="post" action="/api/admin/logout" class="logout-form">
+                <button type="submit" class="logout-btn">Logout</button>
+              </form>
+            </div>
+          </nav>
+        </header>
+      )
+    }
+    <main class="admin-main">
+      <slot />
+    </main>
+
+    <style lang="scss" is:global>
+      body.admin-body {
+        max-width: 1400px;
+      }
+    </style>
+
+    <style lang="scss">
+      .admin-header {
+        display: flex;
+        justify-content: center;
+        padding: 0 1rem;
+      }
+
+      nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background-color: $color-accent-1;
+        border-radius: 5px;
+        padding: 0.5rem 1rem;
+        margin-top: 1.5rem;
+        width: 100%;
+        max-width: 60rem;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+
+      .admin-brand a {
+        color: $color-white;
+        text-decoration: none;
+        font-weight: 700;
+        font-size: $fs-md;
+      }
+
+      .admin-links {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        flex-wrap: wrap;
+      }
+
+      .admin-links a {
+        color: $color-white;
+        text-decoration: none;
+        padding: 0.4rem 0.85rem;
+        border-radius: 3px;
+        font-size: $fs-sm;
+        transition: background-color 0.2s ease, color 0.2s ease;
+
+        &:hover,
+        &.active {
+          background-color: $color-accent-2;
+          color: $color-text;
+        }
+      }
+
+      .logout-form {
+        margin: 0;
+      }
+
+      .logout-btn {
+        background: transparent;
+        border: 1px solid $color-white;
+        color: $color-white;
+        padding: 0.35rem 0.85rem;
+        border-radius: 3px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: $fs-sm;
+        cursor: pointer;
+        transition: background-color 0.2s ease, color 0.2s ease;
+
+        &:hover {
+          background-color: $color-error;
+          border-color: $color-error;
+        }
+      }
+
+      .admin-main {
+        padding: 2rem 0 4rem;
+      }
+    </style>
+  </body>
+</html>
