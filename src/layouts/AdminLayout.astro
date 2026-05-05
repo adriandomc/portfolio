@@ -63,7 +63,7 @@ const adminMenu = [
         </header>
       )
     }
-    <main class="admin-main">
+    <main class={showNav ? "admin-main" : "admin-main admin-main--plain"}>
       <slot />
     </main>
 
@@ -86,8 +86,8 @@ const adminMenu = [
         justify-content: space-between;
         background-color: $color-accent-1;
         border-radius: 5px;
-        padding: 0.5rem 1rem;
-        margin-top: 1.5rem;
+        padding: 0.55rem 1rem;
+        margin-top: 1rem;
         width: 100%;
         max-width: 60rem;
         gap: 1rem;
@@ -145,7 +145,11 @@ const adminMenu = [
       }
 
       .admin-main {
-        padding: 2rem 0 4rem;
+        padding: 1.25rem 0 4rem;
+      }
+
+      .admin-main--plain {
+        padding-top: 0;
       }
     </style>
   </body>

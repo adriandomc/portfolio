@@ -27,6 +27,7 @@ const stats = {
 <AdminLayout title="Dashboard">
   <section class="dashboard">
     <h1>Dashboard</h1>
+    <p class="subtitle">Overview of your published and draft content.</p>
     {loadError && <p class="error">{loadError}</p>}
 
     <div class="stats">
@@ -57,7 +58,13 @@ const stats = {
   }
 
   h1 {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .dashboard :global(.subtitle) {
+    margin: 0 0 1.5rem;
+    color: $color-accent-1;
+    font-size: $fs-sm;
   }
 
   .error {
@@ -89,10 +96,11 @@ const stats = {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
-    transition: background-color 0.2s ease;
+    transition: background-color 0.2s ease, transform 0.2s ease;
 
     &:hover {
       background-color: $color-secondary;
+      transform: translateY(-2px);
     }
   }
 
@@ -123,7 +131,7 @@ const stats = {
     align-items: center;
     background-color: $color-accent-1;
     color: $color-white;
-    border-radius: 9999px;
+    border-radius: 5px;
     padding: 0.55rem 1.25rem;
     font-size: $fs-sm;
     font-weight: 600;
@@ -132,8 +140,9 @@ const stats = {
     transition: background-color 0.2s ease, color 0.2s ease;
 
     &:hover {
-      background-color: $color-text;
-      border-color: $color-text;
+      background-color: $color-accent-2;
+      border-color: $color-accent-2;
+      color: $color-text;
     }
 
     &.btn-secondary {
@@ -142,7 +151,7 @@ const stats = {
 
       &:hover {
         background-color: $color-text;
-        color: $color-white;
+        color: $color-text;
       }
     }
   }

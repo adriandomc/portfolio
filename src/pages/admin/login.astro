@@ -16,6 +16,7 @@ const errorMessage = errorParam ? errorMessages[errorParam] ?? "Login failed." :
 <AdminLayout title="Login" showNav={false}>
   <div class="login-wrap">
     <div class="login-card">
+      <p class="eyebrow">ADC · ADMIN</p>
       <h1>Admin login</h1>
       <p class="hint">Enter your password and 2FA code.</p>
       {errorMessage && <p class="error" role="alert">{errorMessage}</p>}
@@ -54,17 +55,27 @@ const errorMessage = errorParam ? errorMessages[errorParam] ?? "Login failed." :
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 80vh;
+    min-height: 100vh;
     padding: 2rem 1rem;
+    background: linear-gradient(180deg, mix($color-tertiary, $color-white, 55%) 0%, $color-tertiary 100%);
   }
 
   .login-card {
-    background-color: $color-primary;
+    background-color: rgba($color-primary, 0.96);
     border: 1px solid $color-accent-1;
-    border-radius: 5px;
+    border-radius: 6px;
     padding: 2rem;
     width: 100%;
     max-width: 26rem;
+    box-shadow: 0 10px 28px rgba($color-accent-1, 0.2);
+  }
+
+  .eyebrow {
+    margin: 0 0 0.5rem;
+    color: $color-accent-1;
+    font-size: $fs-xs;
+    letter-spacing: 0.08em;
+    font-weight: 700;
   }
 
   h1 {
@@ -123,8 +134,8 @@ const errorMessage = errorParam ? errorMessages[errorParam] ?? "Login failed." :
     margin-top: 0.5rem;
     background-color: $color-accent-1;
     color: $color-white;
-    border: none;
-    border-radius: 9999px;
+    border: 1px solid $color-accent-1;
+    border-radius: 5px;
     padding: 0.6rem 1.25rem;
     font-family: "JetBrains Mono", monospace;
     font-size: $fs-sm;
@@ -133,7 +144,9 @@ const errorMessage = errorParam ? errorMessages[errorParam] ?? "Login failed." :
     transition: background-color 0.2s ease;
 
     &:hover {
-      background-color: $color-text;
+      background-color: $color-accent-2;
+      color: $color-text;
+      border-color: $color-accent-2;
     }
   }
 </style>
