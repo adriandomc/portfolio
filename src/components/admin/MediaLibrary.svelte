@@ -565,7 +565,7 @@
               ondblclick={() => openRoot("images")}
               onkeydown={(event) => event.key === "Enter" && openRoot("images")}
             >
-              <FolderOpen size={30} />
+              <FolderOpen class="folder-icon" size={30} />
               <span>images</span>
               <small>{rootStats.images} files</small>
               <MoreVertical size={16} />
@@ -582,7 +582,7 @@
               ondblclick={() => openFolder(entry)}
               onkeydown={(event) => event.key === "Enter" && openFolder(entry)}
             >
-              <Folder size={30} />
+              <Folder class="folder-icon" size={30} />
               <span>{entry.name}</span>
               <small>{entry.itemCount} files</small>
               <MoreVertical size={16} />
@@ -679,7 +679,12 @@
       class="context-menu"
       style={`left: ${contextMenu.x}px; top: ${contextMenu.y}px;`}
       role="menu"
+      tabindex="-1"
       onclick={(event) => event.stopPropagation()}
+      onkeydown={(event) => {
+        event.stopPropagation();
+        if (event.key === "Escape") contextMenu = null;
+      }}
     >
       {#if target.type === "root"}
         <button type="button" onclick={() => openRoot(target.root)}>Open</button>
@@ -699,7 +704,7 @@
 
   {#if activeDialog === "upload"}
     <div class="dialog-backdrop" role="presentation" onclick={(event) => event.target === event.currentTarget && closeDialog()}>
-      <section class="media-dialog" role="dialog" aria-modal="true" aria-label="Upload image">
+      <div class="media-dialog" role="dialog" aria-modal="true" aria-label="Upload image">
         <header>
           <h2>Upload image</h2>
           <button type="button" aria-label="Close" onclick={closeDialog}><X size={16} /></button>
@@ -734,17 +739,17 @@
         <div class="dialog-actions">
           <button type="button" class="secondary" onclick={closeDialog}>Cancel</button>
           <button type="button" onclick={upload} disabled={!uploadFile || saving}>
-            {#if saving}<Loader2 class="spin" size={16} />{/if}
+            {#if saving}<span class="spin"><Loader2 size={16} /></span>{/if}
             Upload
           </button>
         </div>
-      </section>
+      </div>
     </div>
   {/if}
 
   {#if activeDialog === "new-folder"}
     <div class="dialog-backdrop" role="presentation" onclick={(event) => event.target === event.currentTarget && closeDialog()}>
-      <section class="media-dialog" role="dialog" aria-modal="true" aria-label="New folder">
+      <div class="media-dialog" role="dialog" aria-modal="true" aria-label="New folder">
         <header>
           <h2>New folder</h2>
           <button type="button" aria-label="Close" onclick={closeDialog}><X size={16} /></button>
@@ -762,45 +767,45 @@
           </label>
           <label>
             <span>Name</span>
-            <input bind:value={newFolderName} autofocus placeholder="voltalfa" />
+            <input bind:value={newFolderName} placeholder="voltalfa" />
           </label>
         </div>
         <div class="dialog-actions">
           <button type="button" class="secondary" onclick={closeDialog}>Cancel</button>
           <button type="button" onclick={createFolder} disabled={!newFolderName.trim() || saving}>
-            {#if saving}<Loader2 class="spin" size={16} />{/if}
+            {#if saving}<span class="spin"><Loader2 size={16} /></span>{/if}
             Create
           </button>
         </div>
-      </section>
+      </div>
     </div>
   {/if}
 
   {#if activeDialog === "rename" && selectedNode}
     <div class="dialog-backdrop" role="presentation" onclick={(event) => event.target === event.currentTarget && closeDialog()}>
-      <section class="media-dialog" role="dialog" aria-modal="true" aria-label="Rename media">
+      <div class="media-dialog" role="dialog" aria-modal="true" aria-label="Rename media">
         <header>
           <h2>Rename {selectedNode.type}</h2>
           <button type="button" aria-label="Close" onclick={closeDialog}><X size={16} /></button>
         </header>
         <label>
           <span>Name</span>
-          <input bind:value={renameValue} autofocus />
+          <input bind:value={renameValue} />
         </label>
         <div class="dialog-actions">
           <button type="button" class="secondary" onclick={closeDialog}>Cancel</button>
           <button type="button" onclick={renameSelected} disabled={!renameValue.trim() || saving}>
-            {#if saving}<Loader2 class="spin" size={16} />{/if}
+            {#if saving}<span class="spin"><Loader2 size={16} /></span>{/if}
             Rename
           </button>
         </div>
-      </section>
+      </div>
     </div>
   {/if}
 
   {#if activeDialog === "move" && selectedNode}
     <div class="dialog-backdrop" role="presentation" onclick={(event) => event.target === event.currentTarget && closeDialog()}>
-      <section class="media-dialog wide" role="dialog" aria-modal="true" aria-label="Move media">
+      <div class="media-dialog wide" role="dialog" aria-modal="true" aria-label="Move media">
         <header>
           <h2>Move {labelForNode(selectedNode)}</h2>
           <button type="button" aria-label="Close" onclick={closeDialog}><X size={16} /></button>
@@ -836,17 +841,17 @@
         <div class="dialog-actions">
           <button type="button" class="secondary" onclick={closeDialog}>Cancel</button>
           <button type="button" onclick={moveSelected} disabled={saving}>
-            {#if saving}<Loader2 class="spin" size={16} />{/if}
+            {#if saving}<span class="spin"><Loader2 size={16} /></span>{/if}
             Move
           </button>
         </div>
-      </section>
+      </div>
     </div>
   {/if}
 
   {#if activeDialog === "delete" && deleteTarget}
     <div class="dialog-backdrop" role="presentation" onclick={(event) => event.target === event.currentTarget && closeDialog()}>
-      <section class="media-dialog" role="dialog" aria-modal="true" aria-label="Delete media">
+      <div class="media-dialog" role="dialog" aria-modal="true" aria-label="Delete media">
         <header>
           <h2>Delete {labelForNode(deleteTarget)}</h2>
           <button type="button" aria-label="Close" onclick={closeDialog}><X size={16} /></button>
@@ -869,11 +874,11 @@
         <div class="dialog-actions">
           <button type="button" class="secondary" onclick={closeDialog}>Cancel</button>
           <button type="button" class="danger" onclick={deleteSelected} disabled={saving || Boolean(blockingRefs)}>
-            {#if saving}<Loader2 class="spin" size={16} />{/if}
+            {#if saving}<span class="spin"><Loader2 size={16} /></span>{/if}
             Delete
           </button>
         </div>
-      </section>
+      </div>
     </div>
   {/if}
 </section>
@@ -1049,11 +1054,11 @@
   .folder-card {
     grid-template-columns: auto minmax(0, 1fr) auto;
     min-height: 5.4rem;
+  }
 
-    svg:first-child {
-      grid-row: span 2;
-      color: $color-accent-1;
-    }
+  :global(.folder-icon) {
+    color: $color-accent-1;
+    grid-row: span 2;
   }
 
   .folder-card span,
