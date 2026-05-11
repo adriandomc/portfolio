@@ -22,7 +22,7 @@ const { headers, data, caption } = Astro.props;
           <tr>
             {headers.map((header) => {
               const key = header.toLowerCase();
-              const value = row[key];
+              const value = row[header] ?? row[key];
 
               return (
                 <td>
