@@ -8,8 +8,6 @@
   import {
     Bold,
     Code,
-    Heading2,
-    Heading3,
     ImagePlus,
     Italic,
     Link2,
@@ -18,12 +16,12 @@
     Quote,
     Save,
     Strikethrough,
-    Trash2,
     X,
   } from "@lucide/svelte";
   import {
     COMPONENT_SPECS,
-    customComponentExtensions,
+    createCustomComponentExtensions,
+    type MdxMediaPickerRequest,
   } from "../../lib/admin/editor/extensions";
   import type {
     BlogFrontmatter,
@@ -31,7 +29,6 @@
     Frontmatter,
     ProjectFrontmatter,
   } from "../../lib/admin/posts";
-  import type { MediaRoot } from "../../lib/admin/media";
   import type { TiptapDoc } from "../../lib/admin/mdx/types";
   import MediaPicker from "./MediaPicker.svelte";
 
@@ -47,9 +44,7 @@
   type PickerTarget =
     | { kind: "bodyImage" }
     | { kind: "blogCover" }
-    | { kind: "projectImage"; index: number }
-    | { kind: "blockFigure" }
-    | { kind: "blockCarousel"; index: number };
+    | MdxMediaPickerRequest;
 
   let {
     collection,
@@ -77,9 +72,6 @@
 
   let editorEl: HTMLDivElement;
   let editor: Editor | null = null;
-  let editingBlockPos = $state<number | null>(null);
-  let editingBlockNodeName = $state<string | null>(null);
-  let editingBlockAttrs = $state<Record<string, unknown> | null>(null);
   let pickerTarget = $state<PickerTarget | null>(null);
   let linkOpen = $state(false);
   let linkUrl = $state("");
@@ -93,14 +85,6 @@
       ? `projects/${suggestedSlug || "new-project"}`
       : `blog/${suggestedSlug || "new-post"}`,
   );
-  const blockLabel = $derived(
-    editingBlockNodeName
-      ? editingBlockNodeName === "rawMdxBlock"
-        ? "Raw MDX"
-        : editingBlockNodeName.replace(/^mdx/, "")
-      : "",
-  );
-
   $effect(() => {
     const next = JSON.stringify({ slug, frontmatter });
     if (mounted && next !== lastSavedMeta) dirty = true;
@@ -119,7 +103,11 @@
         Placeholder.configure({
           placeholder: "Start writing your post...",
         }),
-        ...customComponentExtensions,
+        ...createCustomComponentExtensions({
+          openMediaPicker: (target) => {
+            pickerTarget = target;
+          },
+        }),
       ],
       content: initialDoc,
       autofocus: false,
@@ -228,53 +216,6 @@
       .run();
   }
 
-  function openBlockEditor(pos: number) {
-    if (!editor) return;
-    const node = editor.state.doc.nodeAt(pos);
-    if (!node) return;
-    editingBlockPos = pos;
-    editingBlockNodeName = node.type.name;
-    editingBlockAttrs = JSON.parse(JSON.stringify(node.attrs));
-  }
-
-  function saveBlockAttrs() {
-    if (!editor || editingBlockPos === null || !editingBlockAttrs) return;
-    editor
-      .chain()
-      .focus()
-      .command(({ tr }) => {
-        tr.setNodeMarkup(editingBlockPos!, undefined, editingBlockAttrs!);
-        return true;
-      })
-      .run();
-    editingBlockPos = null;
-    editingBlockNodeName = null;
-    editingBlockAttrs = null;
-    markDirty();
-  }
-
-  function deleteBlock() {
-    if (!editor || editingBlockPos === null) return;
-    const node = editor.state.doc.nodeAt(editingBlockPos);
-    if (!node) return;
-    editor
-      .chain()
-      .focus()
-      .command(({ tr }) => {
-        tr.delete(editingBlockPos!, editingBlockPos! + node.nodeSize);
-        return true;
-      })
-      .run();
-    editingBlockPos = null;
-    editingBlockNodeName = null;
-    editingBlockAttrs = null;
-    markDirty();
-  }
-
-  function setBlockField(key: string, value: unknown) {
-    editingBlockAttrs = { ...(editingBlockAttrs ?? {}), [key]: value };
-  }
-
   function addTag() {
     const next = tagDraft.trim();
     if (!next) return;
@@ -294,94 +235,22 @@
     return Array.isArray(projFm.images) ? projFm.images : [];
   }
 
-  function updateProjectImage(index: number, field: "src" | "alt", value: string) {
-    const images = [...projectImages()];
-    images[index] = { ...(images[index] ?? { src: "", alt: "" }), [field]: value };
-    projFm.images = images;
+  function updateBlockAttrsAt(
+    pos: number,
+    updater: (attrs: Record<string, unknown>) => Record<string, unknown>,
+  ) {
+    if (!editor) return;
+    const node = editor.state.doc.nodeAt(pos);
+    if (!node) return;
+    editor
+      .chain()
+      .focus()
+      .command(({ tr }) => {
+        tr.setNodeMarkup(pos, undefined, updater({ ...node.attrs }));
+        return true;
+      })
+      .run();
     markDirty();
-  }
-
-  function addProjectImage() {
-    projFm.images = [...projectImages(), { src: "", alt: "" }];
-    markDirty();
-  }
-
-  function removeProjectImage(index: number) {
-    const images = [...projectImages()];
-    images.splice(index, 1);
-    projFm.images = images;
-    markDirty();
-  }
-
-  function moveProjectImage(index: number, direction: -1 | 1) {
-    const images = [...projectImages()];
-    const target = index + direction;
-    if (target < 0 || target >= images.length) return;
-    [images[index], images[target]] = [images[target], images[index]];
-    projFm.images = images;
-    markDirty();
-  }
-
-  function blockImages() {
-    return Array.isArray(editingBlockAttrs?.images)
-      ? ([...(editingBlockAttrs.images as Array<{ src: string; alt: string }>)] as Array<{
-          src: string;
-          alt: string;
-        }>)
-      : [];
-  }
-
-  function updateBlockImage(index: number, field: "src" | "alt", value: string) {
-    const images = blockImages();
-    images[index] = { ...(images[index] ?? { src: "", alt: "" }), [field]: value };
-    setBlockField("images", images);
-  }
-
-  function addBlockImage() {
-    setBlockField("images", [...blockImages(), { src: "", alt: "" }]);
-  }
-
-  function removeBlockImage(index: number) {
-    const images = blockImages();
-    images.splice(index, 1);
-    setBlockField("images", images);
-  }
-
-  function updateTableHeaders(value: string) {
-    const headers = value
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
-    setBlockField("headers", headers);
-  }
-
-  function tableRows() {
-    return Array.isArray(editingBlockAttrs?.data)
-      ? ([...(editingBlockAttrs.data as Array<Record<string, unknown>>)] as Array<
-          Record<string, unknown>
-        >)
-      : [];
-  }
-
-  function addTableRow() {
-    const headers = Array.isArray(editingBlockAttrs?.headers)
-      ? (editingBlockAttrs.headers as string[])
-      : [];
-    const row: Record<string, unknown> = {};
-    headers.forEach((header) => (row[header] = ""));
-    setBlockField("data", [...tableRows(), row]);
-  }
-
-  function updateTableCell(index: number, header: string, value: string) {
-    const rows = tableRows();
-    rows[index] = { ...(rows[index] ?? {}), [header]: value };
-    setBlockField("data", rows);
-  }
-
-  function removeTableRow(index: number) {
-    const rows = tableRows();
-    rows.splice(index, 1);
-    setBlockField("data", rows);
   }
 
   function chooseMedia(path: string) {
@@ -391,38 +260,24 @@
     } else if (pickerTarget.kind === "blogCover") {
       blogFm.image = path;
       markDirty();
-    } else if (pickerTarget.kind === "projectImage") {
-      updateProjectImage(pickerTarget.index, "src", path);
     } else if (pickerTarget.kind === "blockFigure") {
-      setBlockField("src", path);
+      updateBlockAttrsAt(pickerTarget.pos, (attrs) => ({ ...attrs, src: path }));
     } else if (pickerTarget.kind === "blockCarousel") {
-      updateBlockImage(pickerTarget.index, "src", path);
+      updateBlockAttrsAt(pickerTarget.pos, (attrs) => {
+        const images = Array.isArray(attrs.images)
+          ? ([...(attrs.images as Array<{ src: string; alt: string }>)] as Array<{
+              src: string;
+              alt: string;
+            }>)
+          : [];
+        images[pickerTarget.index] = {
+          ...(images[pickerTarget.index] ?? { src: "", alt: "" }),
+          src: path,
+        };
+        return { ...attrs, images };
+      });
     }
     pickerTarget = null;
-  }
-
-  function findBlockPosByElement(el: HTMLElement): number | null {
-    if (!editor) return null;
-    const rect = el.getBoundingClientRect();
-    const result = editor.view.posAtCoords({
-      left: rect.left + 4,
-      top: rect.top + 4,
-    });
-    if (!result) return null;
-    const resolved = editor.view.state.doc.resolve(
-      result.inside >= 0 ? result.inside : result.pos,
-    );
-    return resolved.before(resolved.depth);
-  }
-
-  function handleEditorClick(event: MouseEvent) {
-    const target = event.target as HTMLElement | null;
-    if (!target) return;
-    const block = target.closest<HTMLElement>(".mdx-block");
-    if (!block) return;
-    event.preventDefault();
-    const pos = findBlockPosByElement(block);
-    if (pos !== null) openBlockEditor(pos);
   }
 
   async function save() {
@@ -562,7 +417,6 @@
         bind:this={editorEl}
         role="textbox"
         tabindex="0"
-        onclick={handleEditorClick}
       ></div>
     </main>
 
@@ -640,23 +494,27 @@
               <span>Featured</span>
             </label>
           </div>
-          <div class="image-list">
+          <div class="project-images">
             <div class="list-title">
               <span>Project images</span>
-              <button type="button" onclick={addProjectImage}>Add</button>
             </div>
-            {#each projectImages() as image, index}
-              <div class="image-row">
-                <input value={image.src} oninput={(event) => updateProjectImage(index, "src", (event.currentTarget as HTMLInputElement).value)} placeholder="/images/..." />
-                <input value={image.alt} oninput={(event) => updateProjectImage(index, "alt", (event.currentTarget as HTMLInputElement).value)} placeholder="Alt text" />
-                <div class="row-actions">
-                  <button type="button" onclick={() => (pickerTarget = { kind: "projectImage", index })}>Pick</button>
-                  <button type="button" onclick={() => moveProjectImage(index, -1)}>Up</button>
-                  <button type="button" onclick={() => moveProjectImage(index, 1)}>Down</button>
-                  <button type="button" class="danger" onclick={() => removeProjectImage(index)}>Remove</button>
-                </div>
-              </div>
-            {/each}
+            <div class="project-gallery" aria-label="Project images preview">
+              {#each projectImages() as image, index}
+                <figure>
+                  {#if image.src}
+                    <img src={image.src} alt={image.alt} loading="lazy" />
+                  {:else}
+                    <div class="image-placeholder">No image</div>
+                  {/if}
+                  <figcaption>
+                    <strong>{index + 1}. {image.alt || "Untitled image"}</strong>
+                    <span>{image.src || "No path"}</span>
+                  </figcaption>
+                </figure>
+              {:else}
+                <p class="muted">No project images configured.</p>
+              {/each}
+            </div>
           </div>
         {/if}
 
@@ -667,91 +525,8 @@
       </section>
 
       <section class="panel">
-        <p class="eyebrow">Block inspector</p>
-        {#if editingBlockNodeName && editingBlockAttrs}
-          <h2>{blockLabel}</h2>
-          {#if editingBlockNodeName === "rawMdxBlock"}
-            <label>
-              <span>MDX source</span>
-              <textarea rows="8" value={String(editingBlockAttrs.source ?? "")} oninput={(event) => setBlockField("source", (event.currentTarget as HTMLTextAreaElement).value)}></textarea>
-            </label>
-          {:else if editingBlockNodeName === "mdxFigure"}
-            <label>
-              <span>Image path</span>
-              <div class="input-action">
-                <input value={String(editingBlockAttrs.src ?? "")} oninput={(event) => setBlockField("src", (event.currentTarget as HTMLInputElement).value)} />
-                <button type="button" onclick={() => (pickerTarget = { kind: "blockFigure" })}>Pick</button>
-              </div>
-            </label>
-            <label><span>Alt</span><input value={String(editingBlockAttrs.alt ?? "")} oninput={(event) => setBlockField("alt", (event.currentTarget as HTMLInputElement).value)} /></label>
-            <label><span>Caption</span><textarea rows="3" value={String(editingBlockAttrs.caption ?? "")} oninput={(event) => setBlockField("caption", (event.currentTarget as HTMLTextAreaElement).value)}></textarea></label>
-            <div class="split">
-              <label><span>Width</span><input value={String(editingBlockAttrs.width ?? "")} oninput={(event) => setBlockField("width", (event.currentTarget as HTMLInputElement).value || null)} /></label>
-              <label><span>Max width</span><input value={String(editingBlockAttrs.maxWidth ?? "")} oninput={(event) => setBlockField("maxWidth", (event.currentTarget as HTMLInputElement).value || null)} /></label>
-            </div>
-          {:else if editingBlockNodeName === "mdxImageCarousel"}
-            <div class="image-list">
-              <div class="list-title">
-                <span>Carousel images</span>
-                <button type="button" onclick={addBlockImage}>Add</button>
-              </div>
-              {#each blockImages() as image, index}
-                <div class="image-row">
-                  <input value={image.src} oninput={(event) => updateBlockImage(index, "src", (event.currentTarget as HTMLInputElement).value)} placeholder="/images/..." />
-                  <input value={image.alt} oninput={(event) => updateBlockImage(index, "alt", (event.currentTarget as HTMLInputElement).value)} placeholder="Alt text" />
-                  <div class="row-actions">
-                    <button type="button" onclick={() => (pickerTarget = { kind: "blockCarousel", index })}>Pick</button>
-                    <button type="button" class="danger" onclick={() => removeBlockImage(index)}>Remove</button>
-                  </div>
-                </div>
-              {/each}
-            </div>
-            <label><span>Caption</span><textarea rows="3" value={String(editingBlockAttrs.caption ?? "")} oninput={(event) => setBlockField("caption", (event.currentTarget as HTMLTextAreaElement).value)}></textarea></label>
-            <div class="split">
-              <label><span>Aspect ratio</span><input value={String(editingBlockAttrs.aspectRatio ?? "")} oninput={(event) => setBlockField("aspectRatio", (event.currentTarget as HTMLInputElement).value)} /></label>
-              <label><span>Object fit</span><select value={String(editingBlockAttrs.objectFit ?? "contain")} onchange={(event) => setBlockField("objectFit", (event.currentTarget as HTMLSelectElement).value)}><option value="contain">contain</option><option value="cover">cover</option><option value="fill">fill</option></select></label>
-            </div>
-            <label><span>Max width</span><input value={String(editingBlockAttrs.maxWidth ?? "")} oninput={(event) => setBlockField("maxWidth", (event.currentTarget as HTMLInputElement).value)} /></label>
-          {:else if editingBlockNodeName === "mdxCard"}
-            <label><span>Title</span><input value={String(editingBlockAttrs.title ?? "")} oninput={(event) => setBlockField("title", (event.currentTarget as HTMLInputElement).value)} /></label>
-            <label><span>Body</span><textarea rows="4" value={String(editingBlockAttrs.caption ?? "")} oninput={(event) => setBlockField("caption", (event.currentTarget as HTMLTextAreaElement).value)}></textarea></label>
-          {:else if editingBlockNodeName === "mdxBadge"}
-            <label><span>Text</span><input value={String(editingBlockAttrs.title ?? "")} oninput={(event) => setBlockField("title", (event.currentTarget as HTMLInputElement).value)} /></label>
-          {:else if editingBlockNodeName === "mdxButton"}
-            <label><span>Label</span><input value={String(editingBlockAttrs.label ?? "")} oninput={(event) => setBlockField("label", (event.currentTarget as HTMLInputElement).value)} /></label>
-            <label><span>Href</span><input value={String(editingBlockAttrs.href ?? "")} oninput={(event) => setBlockField("href", (event.currentTarget as HTMLInputElement).value)} /></label>
-            <div class="split">
-              <label><span>Variant</span><select value={String(editingBlockAttrs.variant ?? "primary")} onchange={(event) => setBlockField("variant", (event.currentTarget as HTMLSelectElement).value)}><option value="primary">primary</option><option value="secondary">secondary</option><option value="danger">danger</option><option value="warning">warning</option></select></label>
-              <label><span>Target</span><select value={String(editingBlockAttrs.target ?? "")} onchange={(event) => setBlockField("target", (event.currentTarget as HTMLSelectElement).value || null)}><option value="">same tab</option><option value="_blank">new tab</option></select></label>
-            </div>
-          {:else if editingBlockNodeName === "mdxTable"}
-            <label><span>Headers</span><input value={Array.isArray(editingBlockAttrs.headers) ? (editingBlockAttrs.headers as string[]).join(", ") : ""} oninput={(event) => updateTableHeaders((event.currentTarget as HTMLInputElement).value)} /></label>
-            <label><span>Caption</span><input value={String(editingBlockAttrs.caption ?? "")} oninput={(event) => setBlockField("caption", (event.currentTarget as HTMLInputElement).value || null)} /></label>
-            <div class="image-list">
-              <div class="list-title">
-                <span>Rows</span>
-                <button type="button" onclick={addTableRow}>Add row</button>
-              </div>
-              {#each tableRows() as row, index}
-                <div class="table-row">
-                  {#each (editingBlockAttrs.headers as string[]) ?? [] as header}
-                    <label><span>{header}</span><input value={String(row[header] ?? "")} oninput={(event) => updateTableCell(index, header, (event.currentTarget as HTMLInputElement).value)} /></label>
-                  {/each}
-                  <button type="button" class="danger" onclick={() => removeTableRow(index)}>Remove row</button>
-                </div>
-              {/each}
-            </div>
-          {/if}
-          <div class="block-actions">
-            <button type="button" onclick={saveBlockAttrs}>Apply block</button>
-            <button type="button" class="danger" onclick={deleteBlock}>
-              <Trash2 size={15} />
-              Delete block
-            </button>
-          </div>
-        {:else}
-          <p class="muted">Click a MDX component block in the editor to edit its props here.</p>
-        {/if}
+        <p class="eyebrow">MDX blocks</p>
+        <p class="muted">Component blocks are edited directly in the canvas. Use each block's inline controls to change copy, images, tables, and links.</p>
       </section>
     </aside>
   </div>
@@ -787,14 +562,14 @@
 
 {#if linkOpen}
   <div class="dialog-backdrop" role="presentation" onclick={(event) => event.target === event.currentTarget && (linkOpen = false)}>
-    <section class="link-dialog" role="dialog" aria-modal="true" aria-label="Edit link">
+    <div class="link-dialog" role="dialog" aria-modal="true" aria-label="Edit link">
       <h2>Link</h2>
-      <input bind:value={linkUrl} placeholder="https://..." autofocus />
+      <input bind:value={linkUrl} placeholder="https://..." />
       <div>
         <button type="button" onclick={() => (linkOpen = false)}>Cancel</button>
         <button type="button" onclick={applyLink}>Apply</button>
       </div>
-    </section>
+    </div>
   </div>
 {/if}
 
@@ -831,9 +606,7 @@
 
   .toolbar,
   .save-strip,
-  .bottom-actions,
-  .block-actions,
-  .row-actions {
+  .bottom-actions {
     display: flex;
     align-items: center;
     gap: 0.35rem;
@@ -848,9 +621,6 @@
   .toolbar select,
   .save-btn,
   .bottom-actions button,
-  .block-actions button,
-  .list-title button,
-  .row-actions button,
   .input-action button,
   .link-dialog button {
     border: 1px solid $color-accent-1;
@@ -864,8 +634,7 @@
     min-height: 2.25rem;
     padding: 0.45rem 0.6rem;
 
-    &:hover,
-    &.active {
+    &:hover {
       background-color: $color-accent-1;
       color: $color-white;
     }
@@ -874,6 +643,11 @@
       cursor: not-allowed;
       opacity: 0.55;
     }
+  }
+
+  .toolbar button.active {
+    background-color: $color-accent-1;
+    color: $color-white;
   }
 
   .toolbar button:not(.text-btn) {
@@ -992,33 +766,245 @@
   }
 
   .editor-area :global(.mdx-block) {
-    background-color: rgba($color-primary, 0.75);
-    border: 2px dashed $color-accent-1;
+    background-color: rgba($color-primary, 0.78);
+    border: 1px solid $color-accent-1;
     border-radius: 5px;
-    cursor: pointer;
     margin: 1rem 0;
-    padding: 1rem;
+    padding: 0.8rem;
+  }
 
-    &::before {
-      content: attr(data-mdx);
-      display: inline-flex;
-      background-color: $color-accent-1;
-      border-radius: 4px;
-      color: $color-white;
-      font-size: $fs-xs;
-      font-weight: 800;
-      margin-bottom: 0.45rem;
-      padding: 0.2rem 0.45rem;
-      text-transform: uppercase;
-    }
+  .editor-area :global(.mdx-block-head) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.65rem;
+  }
 
-    &.raw::before {
-      content: "Raw MDX";
-    }
+  .editor-area :global(.mdx-block-label) {
+    display: inline-flex;
+    background-color: $color-accent-1;
+    border-radius: 4px;
+    color: $color-white;
+    font-size: $fs-xs;
+    font-weight: 800;
+    padding: 0.2rem 0.45rem;
+    text-transform: uppercase;
+  }
+
+  .editor-area :global(.mdx-block button),
+  .editor-area :global(.mdx-block input),
+  .editor-area :global(.mdx-block textarea),
+  .editor-area :global(.mdx-block select) {
+    border: 1px solid $color-accent-1;
+    border-radius: 5px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: $fs-sm;
+  }
+
+  .editor-area :global(.mdx-block button) {
+    background-color: rgba(244, 249, 225, 0.72);
+    color: $color-text;
+    cursor: pointer;
+    font-weight: 800;
+    padding: 0.45rem 0.6rem;
 
     &:hover {
-      background-color: $color-secondary;
+      background-color: $color-accent-1;
+      color: $color-white;
     }
+  }
+
+  .editor-area :global(.mdx-block .mdx-danger) {
+    color: $color-error;
+
+    &:hover {
+      background-color: $color-error;
+      border-color: $color-error;
+      color: $color-white;
+    }
+  }
+
+  .editor-area :global(.mdx-block input),
+  .editor-area :global(.mdx-block textarea),
+  .editor-area :global(.mdx-block select) {
+    background-color: var(--admin-paper);
+    color: $color-text;
+    min-width: 0;
+    padding: 0.45rem 0.55rem;
+    width: 100%;
+  }
+
+  .editor-area :global(.mdx-fields) {
+    display: grid;
+    gap: 0.55rem;
+    margin-top: 0.65rem;
+  }
+
+  .editor-area :global(.mdx-fields--media) {
+    @include respond-to("tablet") {
+      grid-template-columns: minmax(0, 1fr) auto minmax(8rem, 0.8fr);
+    }
+  }
+
+  .editor-area :global(.mdx-fields--carousel),
+  .editor-area :global(.mdx-fields--button) {
+    @include respond-to("tablet") {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  .editor-area :global(.mdx-block label) {
+    display: grid;
+    gap: 0.25rem;
+  }
+
+  .editor-area :global(.mdx-block label span) {
+    color: $color-accent-1;
+    font-size: $fs-xs;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .editor-area :global(.mdx-figure-preview),
+  .editor-area :global(.mdx-empty-media) {
+    background-color: var(--admin-paper);
+    border: 1px solid rgba($color-accent-1, 0.65);
+    border-radius: 5px;
+    min-height: 11rem;
+  }
+
+  .editor-area :global(.mdx-figure-preview) {
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+  }
+
+  .editor-area :global(.mdx-figure-preview img) {
+    border: 0;
+    margin: 0;
+    max-height: 22rem;
+    max-width: 100%;
+    object-fit: contain;
+  }
+
+  .editor-area :global(.mdx-empty-media) {
+    align-items: center;
+    color: $color-accent-1;
+    display: inline-flex;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .editor-area :global(.mdx-carousel-strip) {
+    display: grid;
+    gap: 0.65rem;
+
+    @include respond-to("tablet") {
+      grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    }
+  }
+
+  .editor-area :global(.mdx-carousel-item) {
+    background-color: rgba(244, 249, 225, 0.58);
+    border: 1px solid rgba($color-accent-1, 0.55);
+    border-radius: 5px;
+    display: grid;
+    gap: 0.4rem;
+    padding: 0.5rem;
+  }
+
+  .editor-area :global(.mdx-carousel-item img) {
+    aspect-ratio: 4 / 3;
+    background-color: var(--admin-paper);
+    border: 1px solid rgba($color-accent-1, 0.5);
+    margin: 0;
+    object-fit: contain;
+    width: 100%;
+  }
+
+  .editor-area :global(.mdx-mini-actions),
+  .editor-area :global(.mdx-badge-row) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .editor-area :global(.mdx-preview-badge) {
+    align-self: center;
+    background-color: $color-accent-1;
+    border-radius: 999px;
+    color: $color-white;
+    display: inline-flex;
+    font-size: $fs-sm;
+    font-weight: 800;
+    padding: 0.35rem 0.75rem;
+  }
+
+  .editor-area :global(.mdx-preview-card) {
+    background-color: var(--admin-paper);
+    border: 1px solid rgba($color-accent-1, 0.6);
+    border-radius: 5px;
+    display: grid;
+    gap: 0.55rem;
+    padding: 0.75rem;
+  }
+
+  .editor-area :global(.mdx-card-title) {
+    font-size: $fs-lg;
+    font-weight: 800;
+  }
+
+  .editor-area :global(.mdx-button-preview) {
+    border: 2px solid $color-accent-1;
+    border-radius: 999px;
+    display: inline-flex;
+    font-size: $fs-sm;
+    font-weight: 800;
+    margin-bottom: 0.65rem;
+    padding: 0.45rem 1rem;
+    width: fit-content;
+  }
+
+  .editor-area :global(.mdx-button-preview--secondary) {
+    background-color: $color-accent-1;
+    color: $color-white;
+  }
+
+  .editor-area :global(.mdx-button-preview--danger) {
+    background-color: $color-error;
+    border-color: $color-error;
+    color: $color-white;
+  }
+
+  .editor-area :global(.mdx-button-preview--warning) {
+    border-color: $color-warning;
+  }
+
+  .editor-area :global(.mdx-preview-table) {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  .editor-area :global(.mdx-preview-table th),
+  .editor-area :global(.mdx-preview-table td) {
+    border: 1px solid $color-accent-1;
+    padding: 0.35rem;
+  }
+
+  .editor-area :global(.mdx-preview-table th) {
+    background-color: $color-accent-1;
+    color: $color-white;
+  }
+
+  .editor-area :global(.mdx-empty-copy) {
+    color: $color-accent-1;
+    margin: 0.5rem 0;
+  }
+
+  .editor-area :global(.mdx-raw-source) {
+    min-height: 9rem;
   }
 
   .inspector {
@@ -1129,13 +1115,6 @@
     }
   }
 
-  .image-list,
-  .image-row,
-  .table-row {
-    display: grid;
-    gap: 0.5rem;
-  }
-
   .list-title {
     display: flex;
     align-items: center;
@@ -1143,16 +1122,55 @@
     gap: 0.5rem;
   }
 
-  .image-row,
-  .table-row {
-    background-color: rgba(244, 249, 225, 0.5);
-    border: 1px solid rgba($color-accent-1, 0.45);
-    border-radius: 5px;
-    padding: 0.55rem;
+  .project-images,
+  .project-gallery {
+    display: grid;
+    gap: 0.6rem;
   }
 
-  .row-actions button,
-  .block-actions button,
+  .project-gallery {
+    grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+  }
+
+  .project-gallery figure {
+    background-color: rgba(244, 249, 225, 0.55);
+    border: 1px solid rgba($color-accent-1, 0.5);
+    border-radius: 5px;
+    display: grid;
+    gap: 0.4rem;
+    margin: 0;
+    padding: 0.45rem;
+  }
+
+  .project-gallery img,
+  .image-placeholder {
+    aspect-ratio: 4 / 3;
+    background-color: var(--admin-paper);
+    border: 1px solid rgba($color-accent-1, 0.55);
+    border-radius: 4px;
+    object-fit: contain;
+    width: 100%;
+  }
+
+  .image-placeholder {
+    align-items: center;
+    color: $color-accent-1;
+    display: flex;
+    font-size: $fs-xs;
+    justify-content: center;
+  }
+
+  .project-gallery figcaption {
+    display: grid;
+    gap: 0.2rem;
+    font-size: $fs-xs;
+
+    span {
+      color: $color-accent-1;
+      overflow-wrap: anywhere;
+    }
+  }
+
   .bottom-actions .danger {
     &.danger,
     &.danger:hover {
@@ -1160,10 +1178,6 @@
       border-color: $color-error;
       color: $color-white;
     }
-  }
-
-  .block-actions {
-    justify-content: space-between;
   }
 
   .bottom-actions {
