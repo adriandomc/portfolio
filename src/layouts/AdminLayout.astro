@@ -13,6 +13,7 @@ const adminMenu = [
   { title: "Dashboard", href: "/admin" },
   { title: "Blog", href: "/admin/blog" },
   { title: "Projects", href: "/admin/projects" },
+  { title: "Media", href: "/admin/media" },
 ];
 ---
 
@@ -69,57 +70,62 @@ const adminMenu = [
 
     <style lang="scss" is:global>
       body.admin-body {
-        max-width: 1400px;
+        max-width: none;
+        padding: 0;
+        background-color: color.mix($color-tertiary, $color-white, 72%);
       }
     </style>
 
     <style lang="scss">
       .admin-header {
-        display: flex;
-        justify-content: center;
-        padding: 0 1rem;
+        position: sticky;
+        top: 0;
+        z-index: 30;
+        border-bottom: 1px solid rgba($color-accent-1, 0.45);
+        background-color: $color-tertiary;
       }
 
       nav {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        background-color: $color-accent-1;
-        border-radius: 5px;
-        padding: 0.55rem 1rem;
-        margin-top: 1rem;
+        background-color: $color-primary;
+        border-bottom: 1px solid $color-accent-1;
+        padding: 0.65rem clamp(1rem, 3vw, 2rem);
         width: 100%;
-        max-width: 60rem;
         gap: 1rem;
         flex-wrap: wrap;
       }
 
       .admin-brand a {
-        color: $color-white;
+        color: $color-text;
         text-decoration: none;
         font-weight: 700;
         font-size: $fs-md;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
       }
 
       .admin-links {
         display: flex;
         align-items: center;
-        gap: 0.25rem;
+        gap: 0.4rem;
         flex-wrap: wrap;
       }
 
       .admin-links a {
-        color: $color-white;
+        color: $color-text;
         text-decoration: none;
         padding: 0.4rem 0.85rem;
         border-radius: 3px;
         font-size: $fs-sm;
+        font-weight: 700;
         transition: background-color 0.2s ease, color 0.2s ease;
 
         &:hover,
         &.active {
-          background-color: $color-accent-2;
-          color: $color-text;
+          background-color: $color-accent-1;
+          color: $color-white;
         }
       }
 
@@ -129,8 +135,8 @@ const adminMenu = [
 
       .logout-btn {
         background: transparent;
-        border: 1px solid $color-white;
-        color: $color-white;
+        border: 1px solid $color-accent-1;
+        color: $color-text;
         padding: 0.35rem 0.85rem;
         border-radius: 3px;
         font-family: "JetBrains Mono", monospace;
@@ -141,11 +147,12 @@ const adminMenu = [
         &:hover {
           background-color: $color-error;
           border-color: $color-error;
+          color: $color-white;
         }
       }
 
       .admin-main {
-        padding: 1.25rem 0 4rem;
+        padding: 1.25rem clamp(1rem, 3vw, 2rem) 4rem;
       }
 
       .admin-main--plain {

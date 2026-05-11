@@ -1,6 +1,7 @@
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkMdx from "remark-mdx";
+import remarkGfm from "remark-gfm";
 import JSON5 from "json5";
 import type { Root, RootContent, PhrasingContent } from "mdast";
 import type {
@@ -282,6 +283,7 @@ function stringifyJsxFlow(node: MdxJsxFlowElement): string {
 export function mdxToTiptap(source: string): TiptapDoc {
   const tree = unified()
     .use(remarkParse)
+    .use(remarkGfm)
     .use(remarkMdx)
     .parse(source) as Root;
 

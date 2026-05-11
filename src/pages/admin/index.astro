@@ -2,157 +2,229 @@
 export const prerender = false;
 
 import AdminLayout from "../../layouts/AdminLayout.astro";
+import { listMedia } from "../../lib/admin/media";
 import { listPosts } from "../../lib/admin/posts";
 
 let blogPosts: Awaited<ReturnType<typeof listPosts>> = [];
 let projectPosts: Awaited<ReturnType<typeof listPosts>> = [];
+let mediaCount = 0;
 let loadError: string | null = null;
 try {
-  [blogPosts, projectPosts] = await Promise.all([
+  [blogPosts, projectPosts, mediaCount] = await Promise.all([
     listPosts("blog"),
     listPosts("projects"),
+    listMedia().then((items) => items.length),
   ]);
 } catch (err) {
-  loadError = err instanceof Error ? err.message : "Failed to load posts.";
+  loadError = err instanceof Error ? err.message : "Failed to load admin data.";
 }
 
-const stats = {
-  blogTotal: blogPosts.length,
-  blogDrafts: blogPosts.filter((p) => p.draft).length,
-  projectTotal: projectPosts.length,
-  projectDrafts: projectPosts.filter((p) => p.draft).length,
-};
+const allContent = [...blogPosts, ...projectPosts];
+const drafts = allContent.filter((post) => post.draft).length;
+const recent = allContent
+  .slice()
+  .sort((a, b) => (b.date ?? b.title).localeCompare(a.date ?? a.title))
+  .slice(0, 5);
 ---
 
 <AdminLayout title="Dashboard">
   <section class="dashboard">
-    <h1>Dashboard</h1>
-    <p class="subtitle">Overview of your published and draft content.</p>
+    <header class="hero">
+      <div>
+        <p class="eyebrow">ADC Admin</p>
+        <h1>Content workspace</h1>
+        <p>Posts, projects and repository media in one self-hosted control panel.</p>
+      </div>
+      <div class="quick-actions">
+        <a href="/admin/blog/new">New blog post</a>
+        <a href="/admin/projects/new">New project</a>
+        <a href="/admin/media">Open media</a>
+      </div>
+    </header>
+
     {loadError && <p class="error">{loadError}</p>}
 
-    <div class="stats">
-      <a class="stat" href="/admin/blog">
-        <span class="stat-label">Blog posts</span>
-        <span class="stat-value">{stats.blogTotal}</span>
-        <span class="stat-sub">{stats.blogDrafts} drafts</span>
-      </a>
-      <a class="stat" href="/admin/projects">
-        <span class="stat-label">Projects</span>
-        <span class="stat-value">{stats.projectTotal}</span>
-        <span class="stat-sub">{stats.projectDrafts} drafts</span>
-      </a>
+    <div class="metrics">
+      <a href="/admin/blog"><span>{blogPosts.length}</span>Blog posts</a>
+      <a href="/admin/projects"><span>{projectPosts.length}</span>Projects</a>
+      <a href="/admin/blog?status=draft"><span>{drafts}</span>Drafts</a>
+      <a href="/admin/media"><span>{mediaCount}</span>Media files</a>
     </div>
 
-    <div class="actions">
-      <a class="btn" href="/admin/blog/new">New blog post</a>
-      <a class="btn btn-secondary" href="/admin/projects/new">New project</a>
-    </div>
+    <section class="recent">
+      <header>
+        <p class="eyebrow">Recent content</p>
+        <a href="/admin/blog">View all</a>
+      </header>
+      <div class="recent-table">
+        {recent.map((post) => (
+          <a href={`/admin/${post.collection}/${post.slug}`}>
+            <strong>{post.title || "(untitled)"}</strong>
+            <span>/{post.collection === "blog" ? "blog" : "projects"}/{post.slug}</span>
+            <em>{post.draft ? "Draft" : "Published"}</em>
+          </a>
+        ))}
+      </div>
+    </section>
   </section>
 </AdminLayout>
 
 <style lang="scss">
   .dashboard {
-    max-width: 60rem;
-    margin: 0 auto;
-    padding: 0 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
   }
 
-  h1 {
-    margin-bottom: 1rem;
+  .hero,
+  .recent {
+    background-color: $color-primary;
+    border: 1px solid $color-accent-1;
+    border-radius: 5px;
+    padding: clamp(1rem, 2vw, 1.4rem);
   }
 
-  .dashboard :global(.subtitle) {
-    margin: 0 0 1.5rem;
+  .hero {
+    display: grid;
+    gap: 1rem;
+
+    @include respond-to("tablet") {
+      grid-template-columns: 1fr auto;
+      align-items: end;
+    }
+
+    h1 {
+      margin: 0 0 0.4rem;
+    }
+
+    p:not(.eyebrow) {
+      margin: 0;
+      color: $color-accent-1;
+    }
+  }
+
+  .eyebrow {
+    margin: 0 0 0.35rem;
     color: $color-accent-1;
-    font-size: $fs-sm;
+    font-size: $fs-xs;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .quick-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+
+    a {
+      background-color: $color-accent-1;
+      border: 1px solid $color-accent-1;
+      border-radius: 5px;
+      color: $color-white;
+      font-size: $fs-sm;
+      font-weight: 800;
+      padding: 0.6rem 0.8rem;
+      text-decoration: none;
+
+      &:hover {
+        background-color: $color-text;
+        color: $color-white;
+      }
+    }
+  }
+
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+
+    @include respond-to("desktop") {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    a {
+      background-color: $color-white;
+      border: 1px solid $color-accent-1;
+      border-radius: 5px;
+      color: $color-accent-1;
+      font-size: $fs-xs;
+      font-weight: 800;
+      padding: 1rem;
+      text-decoration: none;
+      text-transform: uppercase;
+
+      &:hover {
+        background-color: $color-secondary;
+        color: $color-text;
+      }
+    }
+
+    span {
+      color: $color-text;
+      display: block;
+      font-size: $fs-3xl;
+      line-height: 1;
+      margin-bottom: 0.35rem;
+    }
+  }
+
+  .recent header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .recent-table {
+    display: grid;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+
+    a {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 0.25rem 1rem;
+      background-color: $color-white;
+      border: 1px solid rgba($color-accent-1, 0.45);
+      border-radius: 5px;
+      color: $color-text;
+      padding: 0.75rem;
+      text-decoration: none;
+
+      &:hover {
+        background-color: $color-secondary;
+      }
+    }
+
+    strong,
+    span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    span {
+      color: $color-accent-1;
+      font-size: $fs-sm;
+    }
+
+    em {
+      align-self: center;
+      color: $color-accent-1;
+      font-size: $fs-xs;
+      font-style: normal;
+      font-weight: 800;
+      grid-row: span 2;
+      text-transform: uppercase;
+    }
   }
 
   .error {
     background-color: $color-error;
     color: $color-white;
-    border-radius: 3px;
-    padding: 0.6rem 0.85rem;
-    font-size: $fs-sm;
-  }
-
-  .stats {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-
-    @include respond-to("tablet") {
-      grid-template-columns: 1fr 1fr;
-    }
-  }
-
-  .stat {
-    background-color: $color-primary;
-    border: 1px solid $color-accent-1;
     border-radius: 5px;
-    padding: 1.25rem;
-    text-decoration: none;
-    color: $color-text;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    transition: background-color 0.2s ease, transform 0.2s ease;
-
-    &:hover {
-      background-color: $color-secondary;
-      transform: translateY(-2px);
-    }
-  }
-
-  .stat-label {
+    padding: 0.75rem 1rem;
     font-size: $fs-sm;
-    color: $color-accent-1;
-  }
-
-  .stat-value {
-    font-size: $fs-3xl;
-    font-weight: 700;
-    line-height: 1;
-  }
-
-  .stat-sub {
-    font-size: $fs-xs;
-    color: $color-accent-1;
-  }
-
-  .actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-  }
-
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    background-color: $color-accent-1;
-    color: $color-white;
-    border-radius: 5px;
-    padding: 0.55rem 1.25rem;
-    font-size: $fs-sm;
-    font-weight: 600;
-    text-decoration: none;
-    border: 2px solid $color-accent-1;
-    transition: background-color 0.2s ease, color 0.2s ease;
-
-    &:hover {
-      background-color: $color-accent-2;
-      border-color: $color-accent-2;
-      color: $color-text;
-    }
-
-    &.btn-secondary {
-      background-color: transparent;
-      color: $color-text;
-
-      &:hover {
-        background-color: $color-text;
-        color: $color-text;
-      }
-    }
   }
 </style>

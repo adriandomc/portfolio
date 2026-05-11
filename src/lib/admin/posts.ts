@@ -107,7 +107,7 @@ export function emptyPost(
   return {
     collection,
     slug,
-    path: pathFor(collection, slug),
+    path: slug ? pathFor(collection, slug) : `${COLLECTION_DIRS[collection]}/new.mdx`,
     title: "",
     description: "",
     draft: true,
