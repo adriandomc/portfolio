@@ -23,7 +23,6 @@
     createCustomComponentExtensions,
     type MdxMediaPickerRequest,
   } from "../../lib/admin/editor/extensions";
-  import { AdminCodeBlock } from "../../lib/admin/editor/code-block";
   import type {
     BlogFrontmatter,
     Collection,
@@ -109,44 +108,55 @@
   });
 
   onMount(() => {
-    editor = new Editor({
-      element: editorEl,
-      extensions: [
-        StarterKit.configure({ codeBlock: false }),
-        AdminCodeBlock,
-        Link.configure({
-          openOnClick: false,
-          HTMLAttributes: { rel: "noopener noreferrer" },
-        }),
-        Image,
-        Placeholder.configure({
-          placeholder: "Start writing your post...",
-        }),
-        ...createCustomComponentExtensions({
-          openMediaPicker: (target) => {
-            pickerTarget = target;
-          },
-          uploadRoot: "images",
-          uploadFolder: () => defaultMediaFolder,
-          onMediaError: (message) => {
-            saveError = message;
-            saveStatus = "error";
-          },
-        }),
-      ],
-      content: initialDoc,
-      autofocus: false,
-      onUpdate: ({ editor }) => {
-        dirty = true;
-        saveStatus = "idle";
-        updateWordCount(editor);
-      },
-      onSelectionUpdate: () => {
-        selectionVersion += 1;
-      },
-    });
-    updateWordCount(editor);
-    mounted = true;
+    let cancelled = false;
+    void setupEditor();
+    return () => {
+      cancelled = true;
+    };
+
+    async function setupEditor() {
+      const { AdminCodeBlock } = await import("../../lib/admin/editor/code-block");
+      if (cancelled) return;
+
+      editor = new Editor({
+        element: editorEl,
+        extensions: [
+          StarterKit.configure({ codeBlock: false }),
+          AdminCodeBlock,
+          Link.configure({
+            openOnClick: false,
+            HTMLAttributes: { rel: "noopener noreferrer" },
+          }),
+          Image,
+          Placeholder.configure({
+            placeholder: "Start writing your post...",
+          }),
+          ...createCustomComponentExtensions({
+            openMediaPicker: (target) => {
+              pickerTarget = target;
+            },
+            uploadRoot: "images",
+            uploadFolder: () => defaultMediaFolder,
+            onMediaError: (message) => {
+              saveError = message;
+              saveStatus = "error";
+            },
+          }),
+        ],
+        content: initialDoc,
+        autofocus: false,
+        onUpdate: ({ editor }) => {
+          dirty = true;
+          saveStatus = "idle";
+          updateWordCount(editor);
+        },
+        onSelectionUpdate: () => {
+          selectionVersion += 1;
+        },
+      });
+      updateWordCount(editor);
+      mounted = true;
+    }
   });
 
   onDestroy(() => {
@@ -573,13 +583,15 @@
 </section>
 
 {#if pickerTarget}
-  <MediaPicker
-    title="Select image"
-    defaultRoot="images"
-    defaultFolder={defaultMediaFolder}
-    onSelect={chooseMedia}
-    onClose={() => (pickerTarget = null)}
-  />
+  <div class="media-picker-portal">
+    <MediaPicker
+      title="Select image"
+      defaultRoot="images"
+      defaultFolder={defaultMediaFolder}
+      onSelect={chooseMedia}
+      onClose={() => (pickerTarget = null)}
+    />
+  </div>
 {/if}
 
 {#if linkOpen}
@@ -793,7 +805,7 @@
     border-radius: 5px;
     display: grid;
     gap: 0;
-    grid-template-columns: 8.25rem minmax(0, 1fr);
+    grid-template-columns: 8.5rem minmax(0, 1fr);
     margin: 1rem 0;
     overflow: hidden;
 
@@ -803,32 +815,17 @@
   }
 
   .editor-area :global(.admin-code-block__rail) {
-    align-content: start;
+    align-content: center;
     background-color: rgba($color-primary, 0.88);
     border-right: 1px solid rgba($color-white, 0.24);
     display: grid;
-    gap: 0.45rem;
     padding: 0.65rem;
 
     @media (max-width: #{$breakpoint-tablet - 1px}) {
       border-bottom: 1px solid rgba($color-white, 0.24);
       border-right: 0;
-      grid-template-columns: auto minmax(0, 1fr);
       align-items: center;
     }
-  }
-
-  .editor-area :global(.admin-code-block__badge) {
-    background-color: $color-accent-1;
-    border-radius: 4px;
-    color: $color-white;
-    display: inline-flex;
-    font-size: $fs-xs;
-    font-weight: 800;
-    justify-content: center;
-    padding: 0.2rem 0.45rem;
-    text-transform: uppercase;
-    width: fit-content;
   }
 
   .editor-area :global(.admin-code-block__select) {
@@ -855,12 +852,60 @@
 
   .editor-area :global(.admin-code-block__code) {
     background: transparent;
-    color: $color-white;
+    color: #f4f9e1;
     display: block;
     font-size: $fs-sm;
+    line-height: 1.7;
     min-height: 6rem;
     padding: 0;
     white-space: pre;
+  }
+
+  .editor-area :global(.admin-code-block .hljs-comment),
+  .editor-area :global(.admin-code-block .hljs-quote) {
+    color: #9cc69b;
+    font-style: italic;
+  }
+
+  .editor-area :global(.admin-code-block .hljs-keyword),
+  .editor-area :global(.admin-code-block .hljs-selector-tag),
+  .editor-area :global(.admin-code-block .hljs-meta),
+  .editor-area :global(.admin-code-block .hljs-doctag) {
+    color: #dbc665;
+  }
+
+  .editor-area :global(.admin-code-block .hljs-string),
+  .editor-area :global(.admin-code-block .hljs-regexp),
+  .editor-area :global(.admin-code-block .hljs-template-variable) {
+    color: #bde4a8;
+  }
+
+  .editor-area :global(.admin-code-block .hljs-title),
+  .editor-area :global(.admin-code-block .hljs-name),
+  .editor-area :global(.admin-code-block .hljs-section),
+  .editor-area :global(.admin-code-block .hljs-selector-id),
+  .editor-area :global(.admin-code-block .hljs-selector-class) {
+    color: #79b4a9;
+  }
+
+  .editor-area :global(.admin-code-block .hljs-attr),
+  .editor-area :global(.admin-code-block .hljs-attribute),
+  .editor-area :global(.admin-code-block .hljs-variable),
+  .editor-area :global(.admin-code-block .hljs-property) {
+    color: #d7f2ba;
+  }
+
+  .editor-area :global(.admin-code-block .hljs-number),
+  .editor-area :global(.admin-code-block .hljs-literal),
+  .editor-area :global(.admin-code-block .hljs-symbol),
+  .editor-area :global(.admin-code-block .hljs-bullet) {
+    color: #f2d36b;
+  }
+
+  .editor-area :global(.admin-code-block .hljs-built_in),
+  .editor-area :global(.admin-code-block .hljs-type),
+  .editor-area :global(.admin-code-block .hljs-class .hljs-title) {
+    color: #f4f9e1;
   }
 
   .editor-area :global(.mdx-block) {
@@ -1355,6 +1400,317 @@
   .muted {
     color: $color-accent-1;
     font-size: $fs-sm;
+  }
+
+  :global(.media-picker-portal .picker-backdrop) {
+    align-items: center;
+    background-color: rgba($color-text, 0.58);
+    display: flex;
+    inset: 0;
+    justify-content: center;
+    overflow-y: auto;
+    padding: clamp(0.75rem, 2vw, 1.25rem);
+    position: fixed;
+    z-index: 140;
+  }
+
+  :global(.media-picker-portal .picker) {
+    background-color: $color-tertiary;
+    border: 1px solid $color-accent-1;
+    border-radius: 5px;
+    box-shadow: 0 1.2rem 3rem rgba($color-text, 0.22);
+    color: $color-text;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: min(54rem, calc(100dvh - 2rem));
+    overflow: hidden;
+    padding: 0.9rem;
+    width: min(72rem, calc(100vw - 1.5rem));
+  }
+
+  :global(.media-picker-portal .picker > header) {
+    align-items: center;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+  }
+
+  :global(.media-picker-portal .picker h2) {
+    font-size: $fs-xl;
+    line-height: 1.1;
+    margin: 0;
+  }
+
+  :global(.media-picker-portal .eyebrow),
+  :global(.media-picker-portal label span) {
+    color: $color-accent-1;
+    font-size: $fs-xs;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    margin: 0;
+    text-transform: uppercase;
+  }
+
+  :global(.media-picker-portal button),
+  :global(.media-picker-portal input),
+  :global(.media-picker-portal select) {
+    font-family: "JetBrains Mono", monospace;
+  }
+
+  :global(.media-picker-portal button) {
+    cursor: pointer;
+  }
+
+  :global(.media-picker-portal .icon-btn) {
+    align-items: center;
+    background-color: $color-accent-1;
+    border: 1px solid $color-accent-1;
+    border-radius: 5px;
+    color: $color-white;
+    display: inline-flex;
+    justify-content: center;
+    min-height: 2.25rem;
+    min-width: 2.25rem;
+    padding: 0.35rem;
+  }
+
+  :global(.media-picker-portal .picker-toolbar) {
+    align-items: stretch;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+
+    @include respond-to("tablet") {
+      flex-direction: row;
+    }
+  }
+
+  :global(.media-picker-portal .search-box),
+  :global(.media-picker-portal .upload-card label),
+  :global(.media-picker-portal .file-btn) {
+    align-items: center;
+    background-color: var(--admin-paper);
+    border: 1px solid $color-accent-1;
+    border-radius: 5px;
+    color: $color-accent-1;
+    display: flex;
+    font-size: $fs-xs;
+    font-weight: 800;
+    gap: 0.35rem;
+    padding: 0.45rem 0.6rem;
+    text-transform: uppercase;
+  }
+
+  :global(.media-picker-portal .search-box) {
+    flex: 1;
+  }
+
+  :global(.media-picker-portal input),
+  :global(.media-picker-portal select) {
+    background-color: transparent;
+    border: 0;
+    color: $color-text;
+    font-size: $fs-sm;
+    min-width: 0;
+    outline: 0;
+    text-transform: none;
+    width: 100%;
+  }
+
+  :global(.media-picker-portal .breadcrumbs) {
+    align-items: center;
+    background-color: var(--admin-paper);
+    border: 1px solid $color-accent-1;
+    border-radius: 5px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    padding: 0.4rem 0.5rem;
+  }
+
+  :global(.media-picker-portal .breadcrumbs button) {
+    background-color: transparent;
+    border: 0;
+    border-radius: 4px;
+    color: $color-accent-1;
+    font-size: $fs-sm;
+    font-weight: 800;
+    padding: 0.2rem 0.35rem;
+  }
+
+  :global(.media-picker-portal .breadcrumbs button.active),
+  :global(.media-picker-portal .breadcrumbs button:hover) {
+    background-color: rgba($color-accent-1, 0.12);
+    color: $color-text;
+  }
+
+  :global(.media-picker-portal .picker-body) {
+    display: grid;
+    gap: 0.75rem;
+    min-height: 0;
+
+    @include respond-to("desktop") {
+      grid-template-columns: minmax(0, 1fr) 19rem;
+    }
+  }
+
+  :global(.media-picker-portal .drive-panel),
+  :global(.media-picker-portal .side-panel) {
+    background-color: var(--admin-paper);
+    border: 1px solid $color-accent-1;
+    border-radius: 5px;
+  }
+
+  :global(.media-picker-portal .drive-panel) {
+    min-height: 28rem;
+    overflow-y: auto;
+    padding: 0.75rem;
+  }
+
+  :global(.media-picker-portal .drive-grid) {
+    display: grid;
+    gap: 0.65rem;
+    grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  }
+
+  :global(.media-picker-portal .folder-card),
+  :global(.media-picker-portal .media-tile) {
+    background-color: $color-primary;
+    border: 1px solid $color-accent-1;
+    border-radius: 5px;
+    color: $color-text;
+    display: grid;
+    gap: 0.35rem;
+    padding: 0.55rem;
+    text-align: left;
+  }
+
+  :global(.media-picker-portal .folder-card:hover),
+  :global(.media-picker-portal .media-tile:hover),
+  :global(.media-picker-portal .media-tile.selected) {
+    outline: 3px solid $color-accent-2;
+    outline-offset: 1px;
+  }
+
+  :global(.media-picker-portal .folder-card) {
+    grid-template-columns: auto minmax(0, 1fr);
+    min-height: 4.75rem;
+  }
+
+  :global(.media-picker-portal .folder-card svg) {
+    color: $color-accent-1;
+    grid-row: span 2;
+  }
+
+  :global(.media-picker-portal .media-tile img) {
+    aspect-ratio: 4 / 3;
+    background-color: var(--admin-paper);
+    border: 1px solid rgba($color-accent-1, 0.5);
+    border-radius: 4px;
+    object-fit: contain;
+    width: 100%;
+  }
+
+  :global(.media-picker-portal .folder-card span),
+  :global(.media-picker-portal .media-tile span),
+  :global(.media-picker-portal .media-tile small),
+  :global(.media-picker-portal .folder-card small) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  :global(.media-picker-portal .media-tile small),
+  :global(.media-picker-portal .folder-card small),
+  :global(.media-picker-portal .path),
+  :global(.media-picker-portal .muted) {
+    color: $color-accent-1;
+    font-size: $fs-xs;
+  }
+
+  :global(.media-picker-portal .side-panel) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0.75rem;
+  }
+
+  :global(.media-picker-portal .preview),
+  :global(.media-picker-portal .empty-preview) {
+    aspect-ratio: 4 / 3;
+    background-color: $color-primary;
+    border: 1px solid rgba($color-accent-1, 0.65);
+    border-radius: 5px;
+    width: 100%;
+  }
+
+  :global(.media-picker-portal .preview) {
+    object-fit: contain;
+  }
+
+  :global(.media-picker-portal .empty-preview) {
+    align-items: center;
+    color: $color-accent-1;
+    display: grid;
+    justify-items: center;
+    padding: 1rem;
+    text-align: center;
+  }
+
+  :global(.media-picker-portal .path) {
+    overflow-wrap: anywhere;
+  }
+
+  :global(.media-picker-portal .primary) {
+    align-items: center;
+    background-color: $color-accent-1;
+    border: 1px solid $color-accent-1;
+    border-radius: 5px;
+    color: $color-white;
+    display: inline-flex;
+    font-size: $fs-sm;
+    font-weight: 800;
+    gap: 0.35rem;
+    justify-content: center;
+    padding: 0.55rem 0.8rem;
+  }
+
+  :global(.media-picker-portal .primary:disabled) {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  :global(.media-picker-portal .upload-card) {
+    border-top: 1px solid rgba($color-accent-1, 0.5);
+    display: grid;
+    gap: 0.5rem;
+    padding-top: 0.75rem;
+  }
+
+  :global(.media-picker-portal .file-btn) {
+    cursor: pointer;
+  }
+
+  :global(.media-picker-portal .file-btn input[type="file"]) {
+    display: none;
+  }
+
+  :global(.media-picker-portal .error) {
+    background-color: $color-error;
+    border-radius: 5px;
+    color: $color-white;
+    font-size: $fs-sm;
+    font-weight: 800;
+    margin: 0;
+    padding: 0.55rem 0.75rem;
+  }
+
+  :global(.media-picker-portal .spin) {
+    animation: spin 0.8s linear infinite;
+    display: inline-flex;
   }
 
   .dialog-backdrop {

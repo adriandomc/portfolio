@@ -1,6 +1,22 @@
-import { CodeBlock } from "@tiptap/extension-code-block";
-import type { CodeBlockOptions } from "@tiptap/extension-code-block";
+import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
+import type { CodeBlockLowlightOptions } from "@tiptap/extension-code-block-lowlight";
 import type { NodeViewRendererProps } from "@tiptap/core";
+import bash from "highlight.js/lib/languages/bash";
+import css from "highlight.js/lib/languages/css";
+import dockerfile from "highlight.js/lib/languages/dockerfile";
+import javascript from "highlight.js/lib/languages/javascript";
+import json from "highlight.js/lib/languages/json";
+import markdown from "highlight.js/lib/languages/markdown";
+import php from "highlight.js/lib/languages/php";
+import plaintext from "highlight.js/lib/languages/plaintext";
+import python from "highlight.js/lib/languages/python";
+import ruby from "highlight.js/lib/languages/ruby";
+import scss from "highlight.js/lib/languages/scss";
+import sql from "highlight.js/lib/languages/sql";
+import typescript from "highlight.js/lib/languages/typescript";
+import xml from "highlight.js/lib/languages/xml";
+import yaml from "highlight.js/lib/languages/yaml";
+import { createLowlight } from "lowlight";
 
 export const CODE_LANGUAGE_OPTIONS = [
   { value: "text", label: "Text" },
@@ -24,13 +40,34 @@ export const CODE_LANGUAGE_OPTIONS = [
   { value: "dockerfile", label: "Dockerfile" },
 ];
 
-function languageLabel(value: unknown): string {
-  const language = String(value || "text").toLowerCase();
-  return (
-    CODE_LANGUAGE_OPTIONS.find((option) => option.value === language)?.label ??
-    language.toUpperCase()
-  );
-}
+const lowlight = createLowlight({
+  bash,
+  css,
+  dockerfile,
+  javascript,
+  json,
+  markdown,
+  php,
+  plaintext,
+  python,
+  ruby,
+  scss,
+  sql,
+  typescript,
+  xml,
+  yaml,
+});
+lowlight.registerAlias({
+  plaintext: ["text"],
+  xml: ["astro", "html", "svelte"],
+  javascript: ["js", "jsx"],
+  typescript: ["ts", "tsx"],
+  markdown: ["md"],
+  bash: ["sh", "shell"],
+  python: ["py"],
+  ruby: ["rb"],
+  yaml: ["yml"],
+});
 
 function setLanguage(props: NodeViewRendererProps, language: string) {
   const pos = props.getPos();
@@ -43,8 +80,8 @@ function setLanguage(props: NodeViewRendererProps, language: string) {
   );
 }
 
-export const AdminCodeBlock = CodeBlock.extend({
-  addOptions(): CodeBlockOptions {
+export const AdminCodeBlock = CodeBlockLowlight.extend({
+  addOptions(): CodeBlockLowlightOptions {
     const parent = this.parent?.();
     return {
       languageClassPrefix: parent?.languageClassPrefix ?? "language-",
@@ -54,6 +91,7 @@ export const AdminCodeBlock = CodeBlock.extend({
       enableTabIndentation: true,
       tabSize: 4,
       HTMLAttributes: parent?.HTMLAttributes ?? {},
+      lowlight,
     };
   },
 
@@ -62,14 +100,12 @@ export const AdminCodeBlock = CodeBlock.extend({
       let currentNode = props.node;
       const dom = document.createElement("section");
       const rail = document.createElement("div");
-      const label = document.createElement("span");
       const select = document.createElement("select");
       const pre = document.createElement("pre");
       const code = document.createElement("code");
 
       dom.className = "admin-code-block";
       rail.className = "admin-code-block__rail";
-      label.className = "admin-code-block__badge";
       select.className = "admin-code-block__select";
       select.setAttribute("aria-label", "Syntax language");
       pre.className = "admin-code-block__pre";
@@ -85,16 +121,15 @@ export const AdminCodeBlock = CodeBlock.extend({
       function syncLanguage() {
         const language = String(currentNode.attrs.language || "text").toLowerCase();
         select.value = language;
-        label.textContent = languageLabel(language);
         code.className = `admin-code-block__code language-${language}`;
-        dom.dataset.language = languageLabel(language);
+        dom.dataset.language = language;
       }
 
       select.addEventListener("change", () => {
         setLanguage(props, select.value);
       });
 
-      rail.append(label, select);
+      rail.append(select);
       pre.append(code);
       dom.append(rail, pre);
       syncLanguage();
