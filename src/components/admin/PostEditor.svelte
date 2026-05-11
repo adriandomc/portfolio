@@ -55,11 +55,28 @@
     initialSha,
   }: Props = $props();
 
-  let slug = $state(initialSlug === "new" ? "" : initialSlug);
-  let frontmatter = $state<Frontmatter>(
-    JSON.parse(JSON.stringify(initialFrontmatter)),
-  );
-  let sha = $state(initialSha);
+  function initialEditorSlug() {
+    return initialSlug === "new" ? "" : initialSlug;
+  }
+
+  function initialEditorFrontmatter() {
+    return JSON.parse(JSON.stringify(initialFrontmatter)) as Frontmatter;
+  }
+
+  function initialEditorMeta() {
+    return JSON.stringify({
+      slug: initialEditorSlug(),
+      frontmatter: initialEditorFrontmatter(),
+    });
+  }
+
+  function initialEditorSha() {
+    return initialSha;
+  }
+
+  let slug = $state(initialEditorSlug());
+  let frontmatter = $state<Frontmatter>(initialEditorFrontmatter());
+  let sha = $state(initialEditorSha());
   let saving = $state(false);
   let dirty = $state(false);
   let saveStatus = $state<"idle" | "saved" | "error">("idle");
@@ -67,7 +84,7 @@
   let confirmingDelete = $state(false);
   let wordCount = $state(0);
   let mounted = $state(false);
-  let lastSavedMeta = $state(JSON.stringify({ slug, frontmatter }));
+  let lastSavedMeta = $state(initialEditorMeta());
   let selectionVersion = $state(0);
 
   let editorEl: HTMLDivElement;
@@ -106,6 +123,12 @@
         ...createCustomComponentExtensions({
           openMediaPicker: (target) => {
             pickerTarget = target;
+          },
+          uploadRoot: "images",
+          uploadFolder: () => defaultMediaFolder,
+          onMediaError: (message) => {
+            saveError = message;
+            saveStatus = "error";
           },
         }),
       ],
@@ -254,24 +277,26 @@
   }
 
   function chooseMedia(path: string) {
-    if (!pickerTarget) return;
-    if (pickerTarget.kind === "bodyImage") {
+    const target = pickerTarget;
+    if (!target) return;
+    if (target.kind === "bodyImage") {
       editor?.chain().focus().setImage({ src: path, alt: "" }).run();
-    } else if (pickerTarget.kind === "blogCover") {
+    } else if (target.kind === "blogCover") {
       blogFm.image = path;
       markDirty();
-    } else if (pickerTarget.kind === "blockFigure") {
-      updateBlockAttrsAt(pickerTarget.pos, (attrs) => ({ ...attrs, src: path }));
-    } else if (pickerTarget.kind === "blockCarousel") {
-      updateBlockAttrsAt(pickerTarget.pos, (attrs) => {
+    } else if (target.kind === "blockFigure") {
+      updateBlockAttrsAt(target.pos, (attrs) => ({ ...attrs, src: path }));
+    } else if (target.kind === "blockCarousel") {
+      const targetIndex = target.index;
+      updateBlockAttrsAt(target.pos, (attrs) => {
         const images = Array.isArray(attrs.images)
           ? ([...(attrs.images as Array<{ src: string; alt: string }>)] as Array<{
               src: string;
               alt: string;
             }>)
           : [];
-        images[pickerTarget.index] = {
-          ...(images[pickerTarget.index] ?? { src: "", alt: "" }),
+        images[targetIndex] = {
+          ...(images[targetIndex] ?? { src: "", alt: "" }),
           src: path,
         };
         return { ...attrs, images };
@@ -522,11 +547,6 @@
           <input type="checkbox" bind:checked={frontmatter.draft} onchange={markDirty} />
           <span>Draft (excluded from build)</span>
         </label>
-      </section>
-
-      <section class="panel">
-        <p class="eyebrow">MDX blocks</p>
-        <p class="muted">Component blocks are edited directly in the canvas. Use each block's inline controls to change copy, images, tables, and links.</p>
       </section>
     </aside>
   </div>
@@ -793,6 +813,7 @@
   }
 
   .editor-area :global(.mdx-block button),
+  .editor-area :global(.mdx-upload-button),
   .editor-area :global(.mdx-block input),
   .editor-area :global(.mdx-block textarea),
   .editor-area :global(.mdx-block select) {
@@ -813,6 +834,27 @@
       background-color: $color-accent-1;
       color: $color-white;
     }
+  }
+
+  .editor-area :global(.mdx-upload-button) {
+    align-items: center;
+    background-color: rgba(244, 249, 225, 0.72);
+    color: $color-text;
+    cursor: pointer;
+    display: inline-flex !important;
+    font-weight: 800;
+    justify-content: center;
+    padding: 0.45rem 0.6rem;
+    text-transform: none;
+
+    &:hover {
+      background-color: $color-accent-1;
+      color: $color-white;
+    }
+  }
+
+  .editor-area :global(.mdx-upload-button input) {
+    display: none;
   }
 
   .editor-area :global(.mdx-block .mdx-danger) {
@@ -906,6 +948,11 @@
     }
   }
 
+  .editor-area :global(.mdx-empty-stack) {
+    display: grid;
+    gap: 0.5rem;
+  }
+
   .editor-area :global(.mdx-carousel-item) {
     background-color: rgba(244, 249, 225, 0.58);
     border: 1px solid rgba($color-accent-1, 0.55);
@@ -913,6 +960,34 @@
     display: grid;
     gap: 0.4rem;
     padding: 0.5rem;
+  }
+
+  .editor-area :global(.mdx-carousel-item.is-dragging) {
+    opacity: 0.78;
+    outline: 3px solid $color-accent-2;
+    outline-offset: 1px;
+  }
+
+  .editor-area :global(.mdx-carousel-item-head) {
+    align-items: center;
+    display: flex;
+    gap: 0.4rem;
+    justify-content: space-between;
+  }
+
+  .editor-area :global(.mdx-carousel-item-head span) {
+    color: $color-accent-1;
+    font-size: $fs-xs;
+    font-weight: 800;
+  }
+
+  .editor-area :global(.mdx-drag-handle) {
+    cursor: grab;
+    width: fit-content;
+
+    &:active {
+      cursor: grabbing;
+    }
   }
 
   .editor-area :global(.mdx-carousel-item img) {

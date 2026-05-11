@@ -26,14 +26,22 @@
     onClose,
   }: Props = $props();
 
+  function initialPickerRoot() {
+    return defaultRoot;
+  }
+
+  function initialPickerFolder() {
+    return defaultFolder;
+  }
+
   let items = $state<MediaItem[]>([]);
   let folders = $state<MediaFolder[]>([]);
   let query = $state("");
-  let currentRoot = $state<MediaRoot | null>(defaultRoot);
-  let currentFolder = $state(defaultFolder);
+  let currentRoot = $state<MediaRoot | null>(initialPickerRoot());
+  let currentFolder = $state(initialPickerFolder());
   let selected = $state<MediaItem | null>(null);
-  let uploadRoot = $state<MediaRoot>(defaultRoot);
-  let uploadFolder = $state(defaultFolder);
+  let uploadRoot = $state<MediaRoot>(initialPickerRoot());
+  let uploadFolder = $state(initialPickerFolder());
   let uploadFilename = $state("");
   let uploadFile = $state<File | null>(null);
   let loading = $state(true);
@@ -103,8 +111,8 @@
   }
 
   function syncUploadDestination() {
-    uploadRoot = currentRoot ?? defaultRoot;
-    uploadFolder = currentRoot ? currentFolder : defaultFolder;
+    uploadRoot = currentRoot ?? initialPickerRoot();
+    uploadFolder = currentRoot ? currentFolder : initialPickerFolder();
   }
 
   function openRoot(root: MediaRoot) {
@@ -307,7 +315,7 @@
             />
           </label>
           <button type="button" class="primary" onclick={upload} disabled={!uploadFile || saving}>
-            {#if saving}<Loader2 class="spin" size={15} />{/if}
+            {#if saving}<span class="spin"><Loader2 size={15} /></span>{/if}
             Upload
           </button>
         </section>
@@ -491,19 +499,20 @@
     color: $color-text;
     padding: 0.55rem;
     text-align: left;
+  }
 
-    &:hover,
-    &.selected {
-      outline: 3px solid $color-accent-2;
-      outline-offset: 1px;
-    }
+  .folder-card:hover,
+  .media-tile:hover,
+  .media-tile.selected {
+    outline: 3px solid $color-accent-2;
+    outline-offset: 1px;
   }
 
   .folder-card {
     grid-template-columns: auto minmax(0, 1fr);
     min-height: 4.75rem;
 
-    svg {
+    :global(svg) {
       color: $color-accent-1;
       grid-row: span 2;
     }
@@ -610,6 +619,7 @@
   }
 
   .spin {
+    display: inline-flex;
     animation: spin 0.8s linear infinite;
   }
 

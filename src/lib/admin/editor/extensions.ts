@@ -11,12 +11,18 @@ interface ImageAttr {
   alt: string;
 }
 
+type MediaRoot = "images" | "assets";
+type MaybeGetter<T> = T | (() => T);
+
 export type MdxMediaPickerRequest =
   | { kind: "blockFigure"; pos: number }
   | { kind: "blockCarousel"; pos: number; index: number };
 
 export interface ComponentExtensionOptions {
   openMediaPicker?: (target: MdxMediaPickerRequest) => void;
+  uploadRoot?: MaybeGetter<MediaRoot>;
+  uploadFolder?: MaybeGetter<string>;
+  onMediaError?: (message: string) => void;
 }
 
 export const COMPONENT_SPECS: ComponentSpec[] = [
@@ -112,6 +118,10 @@ function cleanOptional(value: string): string | null {
   return value.trim() ? value : null;
 }
 
+function resolveOption<T>(value: MaybeGetter<T> | undefined, fallback: T): T {
+  return typeof value === "function" ? (value as () => T)() : (value ?? fallback);
+}
+
 function buildNode(spec: ComponentSpec, options: ComponentExtensionOptions) {
   const attrShape = Object.fromEntries(
     Object.keys(spec.defaultAttrs).map((key) => [
@@ -153,6 +163,7 @@ function componentNodeView(
   options: ComponentExtensionOptions,
 ) {
   let currentNode = props.node;
+  let draggingCarouselIndex: number | null = null;
   const dom = document.createElement("section");
   dom.className = `mdx-block mdx-block--${spec.tiptapName}`;
   dom.dataset.mdx = spec.name;
@@ -195,6 +206,58 @@ function componentNodeView(
     options.openMediaPicker?.({ kind: "blockCarousel", pos: currentPos, index });
   }
 
+  function reportMediaError(message: string) {
+    options.onMediaError?.(message);
+  }
+
+  async function uploadImage(file: File, applyPath: (path: string) => void) {
+    if (!file.type.startsWith("image/")) {
+      reportMediaError("Only image files can be uploaded here.");
+      return;
+    }
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("root", resolveOption(options.uploadRoot, "images"));
+    fd.append("folder", resolveOption(options.uploadFolder, ""));
+    try {
+      const res = await fetch("/api/admin/media", { method: "POST", body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? `Upload failed with ${res.status}.`);
+      const path = String(data.item?.path ?? "");
+      if (!path) throw new Error("Upload finished without returning an image path.");
+      applyPath(path);
+    } catch (err) {
+      reportMediaError(err instanceof Error ? err.message : "Upload failed.");
+    }
+  }
+
+  function updateCarouselImage(index: number, partial: Partial<ImageAttr>) {
+    const images = imageList(currentNode.attrs.images);
+    images[index] = { ...(images[index] ?? { src: "", alt: "" }), ...partial };
+    setAttrs({ images }, true);
+  }
+
+  function appendCarouselImage(image: ImageAttr) {
+    setAttrs({ images: [...imageList(currentNode.attrs.images), image] }, true);
+  }
+
+  function reorderCarouselImages(fromIndex: number, toIndex: number) {
+    const images = imageList(currentNode.attrs.images);
+    if (
+      fromIndex === toIndex ||
+      fromIndex < 0 ||
+      toIndex < 0 ||
+      fromIndex >= images.length ||
+      toIndex >= images.length
+    ) {
+      return;
+    }
+    const [moving] = images.splice(fromIndex, 1);
+    images.splice(toIndex, 0, moving);
+    draggingCarouselIndex = toIndex;
+    setAttrs({ images }, true);
+  }
+
   function shell(inner: string): string {
     return `
       <div class="mdx-block-head">
@@ -220,6 +283,10 @@ function componentNodeView(
       <div class="mdx-fields mdx-fields--media">
         <label><span>Path</span><input class="mdx-inline-control" data-field="src" value="${escapeHtml(src)}" placeholder="/images/..." /></label>
         <button class="mdx-inline-control" type="button" data-action="pick-figure">Pick</button>
+        <label class="mdx-upload-button mdx-inline-control">
+          Upload
+          <input type="file" accept="image/*" data-upload="figure" />
+        </label>
         <label><span>Alt</span><input class="mdx-inline-control" data-field="alt" value="${escapeHtml(attrs.alt)}" /></label>
         <label><span>Caption</span><textarea class="mdx-inline-control" data-field="caption" rows="2">${escapeHtml(attrs.caption)}</textarea></label>
         <label><span>Width</span><input class="mdx-inline-control" data-field="width" value="${escapeHtml(attrs.width)}" /></label>
@@ -236,7 +303,11 @@ function componentNodeView(
         ? images
             .map(
               (image, index) => `
-                <article class="mdx-carousel-item">
+                <article class="mdx-carousel-item ${draggingCarouselIndex === index ? "is-dragging" : ""}" data-carousel-index="${index}" draggable="true">
+                  <div class="mdx-carousel-item-head">
+                    <button class="mdx-inline-control mdx-drag-handle" type="button" draggable="true" data-drag-handle data-index="${index}" aria-label="Drag to reorder image ${index + 1}">Grip</button>
+                    <span>${index + 1}</span>
+                  </div>
                   ${
                     image.src
                       ? `<img src="${escapeHtml(image.src)}" alt="${escapeHtml(image.alt)}" />`
@@ -246,19 +317,31 @@ function componentNodeView(
                   <input class="mdx-inline-control" data-image-field="alt" data-index="${index}" value="${escapeHtml(image.alt)}" placeholder="Alt text" />
                   <div class="mdx-mini-actions">
                     <button class="mdx-inline-control" type="button" data-action="pick-carousel" data-index="${index}">Pick</button>
-                    <button class="mdx-inline-control" type="button" data-action="move-image" data-index="${index}" data-direction="-1">Left</button>
-                    <button class="mdx-inline-control" type="button" data-action="move-image" data-index="${index}" data-direction="1">Right</button>
+                    <label class="mdx-upload-button mdx-inline-control">
+                      Upload
+                      <input type="file" accept="image/*" data-upload="carousel" data-index="${index}" />
+                    </label>
                     <button class="mdx-inline-control mdx-danger" type="button" data-action="remove-image" data-index="${index}">Remove</button>
                   </div>
                 </article>
               `,
             )
             .join("")
-        : `<button class="mdx-empty-media mdx-inline-control" type="button" data-action="add-image">Add first image</button>`;
+        : `<div class="mdx-empty-stack">
+            <button class="mdx-empty-media mdx-inline-control" type="button" data-action="add-image">Add first image</button>
+            <label class="mdx-upload-button mdx-inline-control">
+              Upload first image
+              <input type="file" accept="image/*" data-upload="carousel-new" />
+            </label>
+          </div>`;
     return shell(`
       <div class="mdx-carousel-strip">${tiles}</div>
       <div class="mdx-fields mdx-fields--carousel">
         <button class="mdx-inline-control" type="button" data-action="add-image">Add image</button>
+        <label class="mdx-upload-button mdx-inline-control">
+          Upload image
+          <input type="file" accept="image/*" data-upload="carousel-new" />
+        </label>
         <label><span>Caption</span><textarea class="mdx-inline-control" data-field="caption" rows="2">${escapeHtml(attrs.caption)}</textarea></label>
         <label><span>Aspect ratio</span><input class="mdx-inline-control" data-field="aspectRatio" value="${escapeHtml(attrs.aspectRatio)}" /></label>
         <label><span>Object fit</span>
@@ -436,6 +519,30 @@ function componentNodeView(
     }
   };
 
+  dom.onchange = (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || target.type !== "file") return;
+    const uploadKind = target.dataset.upload;
+    const file = target.files?.[0];
+    if (!uploadKind || !file) return;
+    const index = Number(target.dataset.index ?? 0);
+    void uploadImage(file, (path) => {
+      if (uploadKind === "figure") {
+        setAttrs({ src: path }, true);
+        return;
+      }
+      if (uploadKind === "carousel") {
+        updateCarouselImage(index, { src: path });
+        return;
+      }
+      if (uploadKind === "carousel-new") {
+        appendCarouselImage({ src: path, alt: "" });
+      }
+    }).finally(() => {
+      target.value = "";
+    });
+  };
+
   dom.oninput = (event) => {
     const target = event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
     if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement)) return;
@@ -480,6 +587,46 @@ function componentNodeView(
       rows[rowIndex] = { ...(rows[rowIndex] ?? {}), [tableCell]: target.value };
       setAttrs({ data: rows });
     }
+  };
+
+  dom.ondragstart = (event) => {
+    if (spec.name !== "ImageCarousel") return;
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    const handle = target?.closest<HTMLElement>("[data-drag-handle]");
+    if (!handle) {
+      if (target?.closest(".mdx-carousel-item")) event.preventDefault();
+      return;
+    }
+    draggingCarouselIndex = Number(handle.dataset.index ?? 0);
+    event.dataTransfer?.setData("text/plain", String(draggingCarouselIndex));
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+    handle.closest(".mdx-carousel-item")?.classList.add("is-dragging");
+  };
+
+  dom.ondragover = (event) => {
+    if (spec.name !== "ImageCarousel" || draggingCarouselIndex === null) return;
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    const item = target?.closest<HTMLElement>(".mdx-carousel-item");
+    if (!item) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+    const targetIndex = Number(item.dataset.carouselIndex ?? -1);
+    if (Number.isInteger(targetIndex) && targetIndex !== draggingCarouselIndex) {
+      reorderCarouselImages(draggingCarouselIndex, targetIndex);
+    }
+  };
+
+  dom.ondrop = (event) => {
+    if (spec.name !== "ImageCarousel") return;
+    event.preventDefault();
+    draggingCarouselIndex = null;
+    render();
+  };
+
+  dom.ondragend = () => {
+    if (spec.name !== "ImageCarousel") return;
+    draggingCarouselIndex = null;
+    render();
   };
 
   render();
