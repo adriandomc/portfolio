@@ -70,9 +70,16 @@ const adminMenu = [
 
     <style lang="scss" is:global>
       body.admin-body {
+        --admin-paper: #f4f9e1;
         max-width: none;
         padding: 0;
         background-color: color.mix($color-tertiary, $color-white, 72%);
+      }
+
+      body.admin-body input,
+      body.admin-body textarea,
+      body.admin-body select {
+        background-color: var(--admin-paper);
       }
     </style>
 

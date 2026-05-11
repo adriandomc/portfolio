@@ -584,7 +584,7 @@
     padding: 0.45rem 0.6rem;
     border-radius: 3px;
     border: 1px solid $color-accent-1;
-    background-color: $color-white;
+    background-color: var(--admin-paper);
     color: $color-text;
     width: 100%;
   }
@@ -629,7 +629,7 @@
   }
 
   .image-row {
-    background-color: $color-white;
+    background-color: var(--admin-paper);
     border: 1px solid $color-accent-1;
     border-radius: 4px;
     padding: 0.65rem;
@@ -652,7 +652,7 @@
   }
 
   .table-row {
-    background-color: $color-white;
+    background-color: var(--admin-paper);
     border: 1px solid $color-accent-1;
     border-radius: 4px;
     padding: 0.65rem;

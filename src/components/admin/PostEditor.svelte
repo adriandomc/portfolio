@@ -855,7 +855,7 @@
   .link-dialog button {
     border: 1px solid $color-accent-1;
     border-radius: 5px;
-    background-color: rgba($color-white, 0.4);
+    background-color: rgba(244, 249, 225, 0.4);
     color: $color-text;
     cursor: pointer;
     font-family: "JetBrains Mono", monospace;
@@ -925,7 +925,7 @@
   }
 
   .editor-area {
-    background-color: $color-white;
+    background-color: var(--admin-paper);
     border: 1px solid $color-accent-1;
     border-radius: 5px;
     color: $color-text;
@@ -1069,7 +1069,7 @@
   input,
   textarea,
   select {
-    background-color: $color-white;
+    background-color: var(--admin-paper);
     border: 1px solid $color-accent-1;
     border-radius: 5px;
     color: $color-text;
@@ -1145,7 +1145,7 @@
 
   .image-row,
   .table-row {
-    background-color: rgba($color-white, 0.5);
+    background-color: rgba(244, 249, 225, 0.5);
     border: 1px solid rgba($color-accent-1, 0.45);
     border-radius: 5px;
     padding: 0.55rem;

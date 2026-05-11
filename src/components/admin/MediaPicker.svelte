@@ -203,7 +203,7 @@
     gap: 0.35rem;
     border: 1px solid $color-accent-1;
     border-radius: 5px;
-    background-color: $color-white;
+    background-color: var(--admin-paper);
     color: $color-accent-1;
     font-size: $fs-xs;
     font-weight: 800;
@@ -283,7 +283,7 @@
       width: 100%;
       aspect-ratio: 4 / 3;
       object-fit: contain;
-      background-color: $color-white;
+      background-color: var(--admin-paper);
       border: 1px solid rgba($color-accent-1, 0.5);
       border-radius: 4px;
     }

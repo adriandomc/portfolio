@@ -32,6 +32,7 @@ export interface MediaItem {
 
 export interface MediaMutationResult {
   item?: MediaItem;
+  items?: MediaItem[];
   deleted?: boolean;
   references: MediaReference[];
   updatedFiles: string[];
@@ -325,6 +326,71 @@ async function referenceUpdateChanges(
   return { changes, updatedFiles, references };
 }
 
+async function referenceUpdateChangesMany(
+  replacements: Array<{ oldPublicPath: string; nextPublicPath: string }>,
+): Promise<{
+  changes: RepoChange[];
+  updatedFiles: string[];
+  references: MediaReference[];
+}> {
+  const contentFiles = await listContentFiles();
+  const changes: RepoChange[] = [];
+  const updatedFiles: string[] = [];
+  const references: MediaReference[] = [];
+
+  for (const file of contentFiles) {
+    let nextContent = file.content;
+    let touched = false;
+    const parsed = splitMatter(file.content);
+
+    for (const replacement of replacements) {
+      if (!file.content.includes(replacement.oldPublicPath)) continue;
+      const fmCount = countOccurrences(parsed.frontmatter, replacement.oldPublicPath);
+      if (fmCount > 0) {
+        references.push({
+          collection: file.collection,
+          slug: file.slug,
+          path: file.path,
+          field: "frontmatter",
+          count: fmCount,
+        });
+      }
+      const bodyCount = countOccurrences(parsed.body, replacement.oldPublicPath);
+      if (bodyCount > 0) {
+        references.push({
+          collection: file.collection,
+          slug: file.slug,
+          path: file.path,
+          field: "body",
+          count: bodyCount,
+        });
+      }
+      nextContent = nextContent.replaceAll(
+        replacement.oldPublicPath,
+        replacement.nextPublicPath,
+      );
+      touched = true;
+    }
+
+    if (touched) {
+      changes.push({
+        path: file.path,
+        content: nextContent,
+        encoding: "utf-8",
+      });
+      updatedFiles.push(file.path);
+    }
+  }
+
+  return { changes, updatedFiles, references };
+}
+
+function isImageRepoFile(file: RepoFile): boolean {
+  const name = file.path.split("/").pop() ?? "";
+  const ext = path.posix.extname(name).replace(/^\./, "").toLowerCase();
+  return IMAGE_EXTENSIONS.has(ext) && name !== ".DS_Store";
+}
+
 export async function uploadMedia(args: {
   content: Buffer;
   fileName: string;
@@ -362,6 +428,89 @@ export async function uploadMedia(args: {
     }),
     references: [],
     updatedFiles: [],
+    commitSha: result.commitSha,
+  };
+}
+
+export async function moveMediaFolder(args: {
+  root: unknown;
+  folder: unknown;
+  nextRoot?: unknown;
+  nextFolder: unknown;
+}): Promise<MediaMutationResult> {
+  const root = normalizeRoot(args.root);
+  const folder = normalizeFolder(args.folder);
+  const nextRoot = args.nextRoot === undefined ? root : normalizeRoot(args.nextRoot);
+  const nextFolder = normalizeFolder(args.nextFolder);
+
+  if (!folder) throw new MediaError("Root media folders cannot be renamed.");
+  if (!nextFolder) throw new MediaError("Folder name is required.");
+
+  const oldPrefix = `public/${root}/${folder}/`;
+  const nextPrefix = `public/${nextRoot}/${nextFolder}/`;
+  if (oldPrefix === nextPrefix) {
+    return { items: [], references: [], updatedFiles: [] };
+  }
+  if (nextPrefix.startsWith(oldPrefix)) {
+    throw new MediaError("A folder cannot be moved into itself.");
+  }
+
+  const files = (await listDirRecursive(`public/${root}`))
+    .filter(isImageRepoFile)
+    .filter((file) => file.path.startsWith(oldPrefix));
+  if (files.length === 0) throw new MediaError("Folder has no media files.", 404);
+
+  const oldPaths = new Set(files.map((file) => file.path));
+  const binaries = await Promise.all(
+    files.map(async (file) => {
+      const binary = await getBinaryFile(file.path);
+      if (!binary) throw new MediaError(`Media file not found: ${file.path}`, 404);
+      const nextRepoPath = `${nextPrefix}${file.path.slice(oldPrefix.length)}`;
+      const existing = await getBinaryFile(nextRepoPath);
+      if (existing && !oldPaths.has(nextRepoPath)) {
+        throw new MediaError(
+          `Media already exists at ${publicPathFromRepoPath(nextRepoPath)}.`,
+          409,
+        );
+      }
+      return { file, binary, nextRepoPath };
+    }),
+  );
+
+  const replacements = binaries.map(({ file, nextRepoPath }) => ({
+    oldPublicPath: publicPathFromRepoPath(file.path),
+    nextPublicPath: publicPathFromRepoPath(nextRepoPath),
+  }));
+  const refUpdates = await referenceUpdateChangesMany(replacements);
+  const result = await commitChanges({
+    changes: [
+      ...binaries.map(({ binary, nextRepoPath }) => ({
+        path: nextRepoPath,
+        content: binary.content,
+        encoding: "base64" as const,
+      })),
+      ...binaries.map(({ file }) => ({ path: file.path, delete: true as const })),
+      ...refUpdates.changes,
+    ],
+    message: `content(media): move /${root}/${folder} to /${nextRoot}/${nextFolder}`,
+  });
+
+  const refsByPath = await findMediaReferences(
+    binaries.map(({ nextRepoPath }) => nextRepoPath),
+  );
+  return {
+    items: binaries.map(({ binary, nextRepoPath }) =>
+      itemFromFile(
+        {
+          path: nextRepoPath,
+          size: binary.size,
+          sha: result.files[nextRepoPath] ?? "local",
+        },
+        refsByPath.get(publicPathFromRepoPath(nextRepoPath)) ?? [],
+      ),
+    ),
+    references: refUpdates.references,
+    updatedFiles: refUpdates.updatedFiles,
     commitSha: result.commitSha,
   };
 }
@@ -421,6 +570,40 @@ export async function moveMedia(args: {
     ),
     references: refUpdates.references,
     updatedFiles: refUpdates.updatedFiles,
+    commitSha: result.commitSha,
+  };
+}
+
+export async function deleteMediaFolder(args: {
+  root: unknown;
+  folder: unknown;
+  force?: boolean;
+}): Promise<MediaMutationResult> {
+  const root = normalizeRoot(args.root);
+  const folder = normalizeFolder(args.folder);
+  if (!folder) throw new MediaError("Root media folders cannot be deleted.");
+
+  const prefix = `public/${root}/${folder}/`;
+  const files = (await listDirRecursive(`public/${root}`))
+    .filter(isImageRepoFile)
+    .filter((file) => file.path.startsWith(prefix));
+  if (files.length === 0) throw new MediaError("Folder has no media files.", 404);
+
+  const refMap = await findMediaReferences(files.map((file) => file.path));
+  const references = [...refMap.values()].flat();
+  if (references.length > 0 && !args.force) {
+    throw new MediaError("Folder contains referenced media.", 409, references);
+  }
+
+  const result = await commitChanges({
+    changes: files.map((file) => ({ path: file.path, delete: true })),
+    message: `content(media): delete /${root}/${folder}`,
+  });
+
+  return {
+    deleted: true,
+    references,
+    updatedFiles: [],
     commitSha: result.commitSha,
   };
 }

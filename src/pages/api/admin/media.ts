@@ -1,10 +1,12 @@
 import type { APIRoute } from "astro";
 import {
   deleteMedia,
+  deleteMediaFolder,
   listMedia,
   MAX_MEDIA_SIZE,
   MediaError,
   moveMedia,
+  moveMediaFolder,
   uploadMedia,
 } from "../../../lib/admin/media";
 
@@ -77,9 +79,12 @@ export const POST: APIRoute = async ({ request }) => {
 
 export const PATCH: APIRoute = async ({ request }) => {
   let payload: {
+    kind?: "file" | "folder";
     repoPath?: string;
     root?: string;
     folder?: string;
+    nextRoot?: string;
+    nextFolder?: string;
     filename?: string;
   };
   try {
@@ -88,15 +93,21 @@ export const PATCH: APIRoute = async ({ request }) => {
     return json({ error: "Invalid JSON body." }, 400);
   }
 
-  if (!payload.repoPath) return json({ error: "repoPath is required." }, 400);
-
   try {
-    const result = await moveMedia({
-      repoPath: payload.repoPath,
-      root: payload.root,
-      folder: payload.folder,
-      filename: payload.filename,
-    });
+    const result =
+      payload.kind === "folder"
+        ? await moveMediaFolder({
+            root: payload.root,
+            folder: payload.folder,
+            nextRoot: payload.nextRoot,
+            nextFolder: payload.nextFolder,
+          })
+        : await moveMedia({
+            repoPath: payload.repoPath ?? "",
+            root: payload.root,
+            folder: payload.folder,
+            filename: payload.filename,
+          });
     return json(result);
   } catch (err) {
     return jsonError(err, "Move failed.");
@@ -104,20 +115,31 @@ export const PATCH: APIRoute = async ({ request }) => {
 };
 
 export const DELETE: APIRoute = async ({ request }) => {
-  let payload: { repoPath?: string; force?: boolean };
+  let payload: {
+    kind?: "file" | "folder";
+    repoPath?: string;
+    root?: string;
+    folder?: string;
+    force?: boolean;
+  };
   try {
     payload = await request.json();
   } catch {
     return json({ error: "Invalid JSON body." }, 400);
   }
 
-  if (!payload.repoPath) return json({ error: "repoPath is required." }, 400);
-
   try {
-    const result = await deleteMedia({
-      repoPath: payload.repoPath,
-      force: Boolean(payload.force),
-    });
+    const result =
+      payload.kind === "folder"
+        ? await deleteMediaFolder({
+            root: payload.root,
+            folder: payload.folder,
+            force: Boolean(payload.force),
+          })
+        : await deleteMedia({
+            repoPath: payload.repoPath ?? "",
+            force: Boolean(payload.force),
+          });
     return json(result);
   } catch (err) {
     return jsonError(err, "Delete failed.");

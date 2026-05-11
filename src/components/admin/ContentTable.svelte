@@ -233,7 +233,7 @@
     display: flex;
     align-items: center;
     gap: 0.45rem;
-    background-color: $color-white;
+    background-color: var(--admin-paper);
     border: 1px solid $color-accent-1;
     border-radius: 5px;
     padding: 0.45rem 0.65rem;
@@ -259,7 +259,7 @@
     overflow-x: auto;
     border: 1px solid $color-accent-1;
     border-radius: 5px;
-    background-color: $color-white;
+    background-color: var(--admin-paper);
   }
 
   table {

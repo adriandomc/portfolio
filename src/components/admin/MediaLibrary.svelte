@@ -1,13 +1,28 @@
 <script lang="ts">
   import {
+    ChevronRight,
+    FileImage,
+    Folder,
     FolderInput,
+    FolderOpen,
     ImagePlus,
     Loader2,
+    MoreVertical,
     Pencil,
     Search,
     Trash2,
+    X,
   } from "@lucide/svelte";
   import type { MediaItem, MediaReference, MediaRoot } from "../../lib/admin/media";
+
+  type ContextTarget =
+    | { type: "root"; root: MediaRoot }
+    | { type: "folder"; root: MediaRoot; folder: string }
+    | { type: "file"; item: MediaItem };
+
+  type RenameTarget =
+    | { type: "folder"; root: MediaRoot; folder: string; parent: string; name: string }
+    | { type: "file"; item: MediaItem; name: string };
 
   let items = $state<MediaItem[]>([]);
   let selected = $state<MediaItem | null>(null);
@@ -15,6 +30,8 @@
   let saving = $state(false);
   let error = $state<string | null>(null);
   let query = $state("");
+  let currentRoot = $state<MediaRoot | null>(null);
+  let currentFolder = $state("");
   let root = $state<MediaRoot>("images");
   let folder = $state("");
   let filename = $state("");
@@ -23,13 +40,29 @@
   let editFolder = $state("");
   let editFilename = $state("");
   let deleteRefs = $state<MediaReference[] | null>(null);
+  let contextMenu = $state<{ x: number; y: number; target: ContextTarget } | null>(null);
+  let renameTarget = $state<RenameTarget | null>(null);
+  let renameValue = $state("");
 
-  const filtered = $derived(
-    items.filter((item) => {
-      const haystack = `${item.path} ${item.folder} ${item.name}`.toLowerCase();
-      return haystack.includes(query.trim().toLowerCase());
-    }),
+  const paper = "#f4f9e1";
+  const rootStats = $derived({
+    images: items.filter((item) => item.root === "images").length,
+    assets: items.filter((item) => item.root === "assets").length,
+  });
+  const breadcrumbs = $derived(
+    currentRoot
+      ? [
+          { label: currentRoot, root: currentRoot, folder: "" },
+          ...currentFolder.split("/").filter(Boolean).map((segment, index, segments) => ({
+            label: segment,
+            root: currentRoot!,
+            folder: segments.slice(0, index + 1).join("/"),
+          })),
+        ]
+      : [],
   );
+  const visibleFolders = $derived(getVisibleFolders());
+  const visibleFiles = $derived(getVisibleFiles());
 
   async function load() {
     loading = true;
@@ -49,6 +82,54 @@
     }
   }
 
+  function getVisibleFolders() {
+    if (!currentRoot || query.trim()) return [];
+    const prefix = currentFolder ? `${currentFolder}/` : "";
+    const map = new Map<string, { root: MediaRoot; folder: string; name: string; count: number }>();
+    for (const item of items) {
+      if (item.root !== currentRoot || !item.folder.startsWith(prefix)) continue;
+      const rest = item.folder.slice(prefix.length);
+      if (!rest) continue;
+      const name = rest.split("/")[0];
+      const folderPath = [currentFolder, name].filter(Boolean).join("/");
+      const existing = map.get(folderPath);
+      if (existing) existing.count += 1;
+      else map.set(folderPath, { root: currentRoot, folder: folderPath, name, count: 1 });
+    }
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  function getVisibleFiles() {
+    const needle = query.trim().toLowerCase();
+    if (needle) {
+      return items
+        .filter((item) =>
+          `${item.path} ${item.folder} ${item.name}`.toLowerCase().includes(needle),
+        )
+        .sort((a, b) => a.path.localeCompare(b.path));
+    }
+    if (!currentRoot) return [];
+    return items
+      .filter((item) => item.root === currentRoot && item.folder === currentFolder)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  function openRoot(nextRoot: MediaRoot) {
+    currentRoot = nextRoot;
+    currentFolder = "";
+    root = nextRoot;
+    folder = "";
+    contextMenu = null;
+  }
+
+  function openFolder(nextFolder: string) {
+    if (!currentRoot) return;
+    currentFolder = nextFolder;
+    root = currentRoot;
+    folder = nextFolder;
+    contextMenu = null;
+  }
+
   function selectItem(item: MediaItem) {
     selected = item;
     editRoot = item.root;
@@ -56,6 +137,26 @@
     editFilename = item.name;
     deleteRefs = null;
     error = null;
+    contextMenu = null;
+  }
+
+  function showContext(event: MouseEvent, target: ContextTarget) {
+    event.preventDefault();
+    contextMenu = { x: event.clientX, y: event.clientY, target };
+  }
+
+  function startRename(target: RenameTarget) {
+    renameTarget = target;
+    renameValue = target.name;
+    contextMenu = null;
+  }
+
+  function folderParent(folderPath: string) {
+    return folderPath.split("/").slice(0, -1).join("/");
+  }
+
+  function folderName(folderPath: string) {
+    return folderPath.split("/").filter(Boolean).at(-1) ?? "";
   }
 
   async function upload() {
@@ -77,7 +178,11 @@
       uploadFile = null;
       filename = "";
       await load();
-      if (data.item) selectItem(data.item);
+      if (data.item) {
+        openRoot(data.item.root);
+        openFolder(data.item.folder);
+        selectItem(data.item);
+      }
     } catch (err) {
       error = err instanceof Error ? err.message : "Upload failed.";
     } finally {
@@ -103,9 +208,56 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       await load();
-      if (data.item) selectItem(data.item);
+      if (data.item) {
+        openRoot(data.item.root);
+        openFolder(data.item.folder);
+        selectItem(data.item);
+      }
     } catch (err) {
       error = err instanceof Error ? err.message : "Move failed.";
+    } finally {
+      saving = false;
+    }
+  }
+
+  async function renameFromDialog() {
+    if (!renameTarget || !renameValue.trim()) return;
+    saving = true;
+    error = null;
+    try {
+      const payload =
+        renameTarget.type === "folder"
+          ? {
+              kind: "folder",
+              root: renameTarget.root,
+              folder: renameTarget.folder,
+              nextRoot: renameTarget.root,
+              nextFolder: [renameTarget.parent, renameValue.trim()].filter(Boolean).join("/"),
+            }
+          : {
+              repoPath: renameTarget.item.repoPath,
+              root: renameTarget.item.root,
+              folder: renameTarget.item.folder,
+              filename: renameValue.trim(),
+            };
+      const res = await fetch("/api/admin/media", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      const previous = renameTarget;
+      renameTarget = null;
+      await load();
+      if (previous.type === "folder") {
+        openRoot(previous.root);
+        openFolder([previous.parent, renameValue.trim()].filter(Boolean).join("/"));
+      } else if (data.item) {
+        selectItem(data.item);
+      }
+    } catch (err) {
+      error = err instanceof Error ? err.message : "Rename failed.";
     } finally {
       saving = false;
     }
@@ -138,12 +290,42 @@
     }
   }
 
+  async function deleteFolder(target: { root: MediaRoot; folder: string }, force = false) {
+    saving = true;
+    error = null;
+    try {
+      const res = await fetch("/api/admin/media", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ kind: "folder", root: target.root, folder: target.folder, force }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 409 && Array.isArray(data.references)) {
+          deleteRefs = data.references;
+        }
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      contextMenu = null;
+      if (currentFolder === target.folder || currentFolder.startsWith(`${target.folder}/`)) {
+        currentFolder = folderParent(target.folder);
+      }
+      await load();
+    } catch (err) {
+      error = err instanceof Error ? err.message : "Delete folder failed.";
+    } finally {
+      saving = false;
+    }
+  }
+
   $effect(() => {
     load();
   });
 </script>
 
-<section class="media-page">
+<svelte:window onclick={() => (contextMenu = null)} onkeydown={(event) => event.key === "Escape" && (contextMenu = null)} />
+
+<section class="media-page" style={`--admin-paper: ${paper};`}>
   <header class="media-header">
     <div>
       <p class="eyebrow">Media library</p>
@@ -151,7 +333,7 @@
     </div>
     <label class="search-box">
       <Search size={16} />
-      <input bind:value={query} type="search" placeholder="Search path or filename..." />
+      <input bind:value={query} type="search" placeholder="Search Drive..." />
     </label>
   </header>
 
@@ -195,17 +377,78 @@
     </button>
   </section>
 
+  <div class="drive-bar">
+    <button type="button" class:active={!currentRoot} onclick={() => { currentRoot = null; currentFolder = ""; }}>
+      My Drive
+    </button>
+    {#each breadcrumbs as crumb, index}
+      <ChevronRight size={15} />
+      <button
+        type="button"
+        class:active={index === breadcrumbs.length - 1}
+        onclick={() => {
+          currentRoot = crumb.root;
+          currentFolder = crumb.folder;
+          root = crumb.root;
+          folder = crumb.folder;
+        }}
+      >
+        {crumb.label}
+      </button>
+    {/each}
+  </div>
+
   <div class="media-workspace">
     <div class="grid-shell">
       {#if loading}
         <p class="muted">Loading media...</p>
       {:else}
-        <div class="media-grid">
-          {#each filtered as item (item.repoPath)}
+        <div class="drive-grid">
+          {#if !currentRoot && !query.trim()}
+            <button
+              type="button"
+              class="folder-card root-card"
+              oncontextmenu={(event) => showContext(event, { type: "root", root: "assets" })}
+              onclick={() => openRoot("assets")}
+            >
+              <FolderOpen size={30} />
+              <span>assets</span>
+              <small>{rootStats.assets} files</small>
+              <MoreVertical size={16} />
+            </button>
+            <button
+              type="button"
+              class="folder-card root-card"
+              oncontextmenu={(event) => showContext(event, { type: "root", root: "images" })}
+              onclick={() => openRoot("images")}
+            >
+              <FolderOpen size={30} />
+              <span>images</span>
+              <small>{rootStats.images} files</small>
+              <MoreVertical size={16} />
+            </button>
+          {/if}
+
+          {#each visibleFolders as entry (entry.folder)}
+            <button
+              type="button"
+              class="folder-card"
+              oncontextmenu={(event) => showContext(event, { type: "folder", root: entry.root, folder: entry.folder })}
+              onclick={() => openFolder(entry.folder)}
+            >
+              <Folder size={30} />
+              <span>{entry.name}</span>
+              <small>{entry.count} files</small>
+              <MoreVertical size={16} />
+            </button>
+          {/each}
+
+          {#each visibleFiles as item (item.repoPath)}
             <button
               type="button"
               class:selected={selected?.repoPath === item.repoPath}
               class="media-tile"
+              oncontextmenu={(event) => showContext(event, { type: "file", item })}
               onclick={() => selectItem(item)}
             >
               <img src={item.path} alt="" loading="lazy" />
@@ -213,7 +456,9 @@
               <small>{item.references.length} refs · {Math.round(item.size / 1024)}KB</small>
             </button>
           {:else}
-            <p class="muted">No images found.</p>
+            {#if currentRoot || query.trim()}
+              <p class="muted">No images found here.</p>
+            {/if}
           {/each}
         </div>
       {/if}
@@ -253,10 +498,10 @@
 
         {#if deleteRefs}
           <div class="refs warning">
-            <strong>Referenced image</strong>
-            <p>Delete is blocked because this image is still used.</p>
+            <strong>Referenced media</strong>
+            <p>This action is blocked because the media is still used.</p>
             <button type="button" class="danger" onclick={() => deleteSelected(true)} disabled={saving}>
-              Force delete anyway
+              Force delete selected file
             </button>
           </div>
         {/if}
@@ -275,10 +520,83 @@
           {/if}
         </div>
       {:else}
-        <p class="muted">Select an image to inspect, rename, move or delete it.</p>
+        <p class="muted">Select an image to keep its preview available while you browse.</p>
       {/if}
     </aside>
   </div>
+
+  {#if contextMenu}
+    <div
+      class="context-menu"
+      style={`left: ${contextMenu.x}px; top: ${contextMenu.y}px;`}
+      role="menu"
+    >
+      {#if contextMenu.target.type === "root"}
+        <button type="button" onclick={() => openRoot(contextMenu!.target.root)}>Open</button>
+      {:else if contextMenu.target.type === "folder"}
+        <button type="button" onclick={() => openFolder((contextMenu!.target as { type: "folder"; folder: string }).folder)}>Open</button>
+        <button
+          type="button"
+          onclick={() => {
+            const target = contextMenu!.target as { type: "folder"; root: MediaRoot; folder: string };
+            startRename({
+              type: "folder",
+              root: target.root,
+              folder: target.folder,
+              parent: folderParent(target.folder),
+              name: folderName(target.folder),
+            });
+          }}
+        >Rename folder</button>
+        <button
+          type="button"
+          class="danger"
+          onclick={() => {
+            const target = contextMenu!.target as { type: "folder"; root: MediaRoot; folder: string };
+            deleteFolder(target);
+          }}
+        >Delete folder</button>
+      {:else}
+        <button type="button" onclick={() => selectItem((contextMenu!.target as { type: "file"; item: MediaItem }).item)}>Preview</button>
+        <button
+          type="button"
+          onclick={() => {
+            const item = (contextMenu!.target as { type: "file"; item: MediaItem }).item;
+            startRename({ type: "file", item, name: item.name });
+          }}
+        >Rename file</button>
+        <button
+          type="button"
+          class="danger"
+          onclick={() => {
+            selectItem((contextMenu!.target as { type: "file"; item: MediaItem }).item);
+            deleteSelected(false);
+          }}
+        >Delete file</button>
+      {/if}
+    </div>
+  {/if}
+
+  {#if renameTarget}
+    <div class="dialog-backdrop" role="presentation" onclick={(event) => event.target === event.currentTarget && (renameTarget = null)}>
+      <section class="rename-dialog" role="dialog" aria-modal="true" aria-label="Rename media">
+        <header>
+          <h2>Rename {renameTarget.type}</h2>
+          <button type="button" aria-label="Close" onclick={() => (renameTarget = null)}>
+            <X size={16} />
+          </button>
+        </header>
+        <label>
+          <span>Name</span>
+          <input bind:value={renameValue} autofocus />
+        </label>
+        <div class="dialog-actions">
+          <button type="button" onclick={() => (renameTarget = null)}>Cancel</button>
+          <button type="button" onclick={renameFromDialog} disabled={saving}>Rename</button>
+        </div>
+      </section>
+    </div>
+  {/if}
 </section>
 
 <style lang="scss">
@@ -291,7 +609,8 @@
   .media-header,
   .upload-panel,
   .inspector,
-  .grid-shell {
+  .grid-shell,
+  .drive-bar {
     border: 1px solid $color-accent-1;
     border-radius: 5px;
   }
@@ -320,11 +639,12 @@
   .search-box,
   .upload-panel label,
   .edit-grid label,
-  .file-input {
+  .file-input,
+  .rename-dialog label {
     display: flex;
     align-items: center;
     gap: 0.45rem;
-    background-color: $color-white;
+    background-color: var(--admin-paper);
     border: 1px solid $color-accent-1;
     border-radius: 5px;
     padding: 0.5rem 0.65rem;
@@ -359,10 +679,35 @@
     }
   }
 
-  .upload-title {
-    display: inline-flex;
+  .upload-title,
+  .drive-bar {
+    display: flex;
     align-items: center;
     gap: 0.45rem;
+  }
+
+  .drive-bar {
+    background-color: var(--admin-paper);
+    flex-wrap: wrap;
+    padding: 0.55rem 0.65rem;
+
+    button {
+      background: transparent;
+      border: 0;
+      border-radius: 4px;
+      color: $color-accent-1;
+      cursor: pointer;
+      font: inherit;
+      font-size: $fs-sm;
+      font-weight: 800;
+      padding: 0.25rem 0.35rem;
+
+      &.active,
+      &:hover {
+        background-color: rgba($color-accent-1, 0.12);
+        color: $color-text;
+      }
+    }
   }
 
   .file-input {
@@ -410,25 +755,53 @@
   }
 
   .grid-shell {
-    background-color: $color-white;
+    background-color: var(--admin-paper);
     min-height: 28rem;
     padding: 0.75rem;
   }
 
-  .media-grid {
+  .drive-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
     gap: 0.75rem;
   }
 
+  .folder-card,
   .media-tile {
     display: grid;
-    gap: 0.45rem;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 0.35rem 0.55rem;
     background-color: $color-primary;
     border: 1px solid $color-accent-1;
     color: $color-text;
-    padding: 0.55rem;
+    padding: 0.65rem;
     text-align: left;
+  }
+
+  .folder-card {
+    min-height: 5.4rem;
+
+    svg:first-child {
+      grid-row: span 2;
+      color: $color-accent-1;
+    }
+  }
+
+  .folder-card span,
+  .media-tile span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .folder-card small,
+  .media-tile small {
+    color: $color-accent-1;
+    grid-column: 2 / 3;
+  }
+
+  .media-tile {
+    grid-template-columns: 1fr;
 
     &.selected {
       outline: 3px solid $color-accent-2;
@@ -449,16 +822,6 @@
       object-fit: contain;
       width: 100%;
     }
-
-    span {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    small {
-      color: $color-accent-1;
-    }
   }
 
   .inspector {
@@ -467,10 +830,17 @@
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+
+    @include respond-to("desktop") {
+      position: sticky;
+      top: 5.25rem;
+      max-height: calc(100vh - 6rem);
+      overflow-y: auto;
+    }
   }
 
   .preview {
-    background-color: $color-white;
+    background-color: var(--admin-paper);
     border: 1px solid $color-accent-1;
     border-radius: 4px;
     max-height: 16rem;
@@ -496,7 +866,7 @@
   }
 
   .refs {
-    background-color: rgba($color-white, 0.65);
+    background-color: rgba(244, 249, 225, 0.7);
     border: 1px solid rgba($color-accent-1, 0.55);
     border-radius: 5px;
     padding: 0.75rem;
@@ -521,6 +891,67 @@
     p {
       margin: 0;
       color: $color-accent-1;
+    }
+  }
+
+  .context-menu {
+    position: fixed;
+    z-index: 90;
+    min-width: 12rem;
+    background-color: var(--admin-paper);
+    border: 1px solid $color-accent-1;
+    border-radius: 5px;
+    box-shadow: 0 12px 24px rgba($color-text, 0.16);
+    display: grid;
+    padding: 0.35rem;
+
+    button {
+      background: transparent;
+      border: 0;
+      color: $color-text;
+      justify-content: flex-start;
+      padding: 0.5rem 0.6rem;
+
+      &:hover {
+        background-color: rgba($color-accent-1, 0.14);
+      }
+
+      &.danger {
+        color: $color-error;
+      }
+    }
+  }
+
+  .dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background-color: rgba($color-text, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+
+  .rename-dialog {
+    background-color: $color-tertiary;
+    border: 1px solid $color-accent-1;
+    border-radius: 5px;
+    display: grid;
+    gap: 0.75rem;
+    padding: 1rem;
+    width: min(28rem, 100%);
+
+    header,
+    .dialog-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    h2 {
+      font-size: $fs-xl;
     }
   }
 
