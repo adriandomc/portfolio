@@ -950,6 +950,12 @@
     margin-bottom: 0.65rem;
   }
 
+  .editor-area :global(.mdx-block-title) {
+    align-items: center;
+    display: inline-flex;
+    gap: 0.45rem;
+  }
+
   .editor-area :global(.mdx-block-label) {
     display: inline-flex;
     background-color: $color-accent-1;
@@ -961,10 +967,22 @@
     text-transform: uppercase;
   }
 
-  .editor-area :global(.mdx-compact-actions) {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 0.35rem;
+  .editor-area :global(.mdx-collapse-toggle) {
+    border-radius: 999px;
+    min-height: 1.8rem;
+    min-width: 1.8rem;
+    padding: 0;
+  }
+
+  .editor-area :global(.mdx-block-body.is-collapsed) {
+    display: block;
+  }
+
+  .editor-area :global(.mdx-collapsed-copy) {
+    color: $color-accent-1;
+    font-size: $fs-sm;
+    font-weight: 800;
+    margin: 0;
   }
 
   .editor-area :global(.mdx-block button),
@@ -1196,22 +1214,50 @@
   .editor-area :global(.mdx-button-inline-wrap) {
     align-items: center;
     display: inline-flex;
-    gap: 0.35rem;
     position: relative;
   }
 
-  .editor-area :global(.mdx-preview-badge) {
-    background-color: $color-accent-1;
-    border-color: $color-accent-1;
+  .editor-area :global(.mdx-editable-pill) {
+    align-items: center;
+    background-color: $color-accent-2;
+    border: 1px solid transparent;
     border-radius: 999px;
-    color: $color-white;
+    display: inline-flex;
+    gap: 0.1rem;
+    max-width: 100%;
+    padding: 0.28rem 0.35rem 0.28rem 0.7rem;
+    width: fit-content;
+  }
+
+  .editor-area :global(.mdx-preview-badge) {
+    background-color: transparent;
+    border: 0;
+    color: $color-text;
     font-size: $fs-sm;
     font-weight: 800;
     max-width: 100%;
     min-width: 5ch;
-    padding: 0.4rem 0.75rem;
-    text-align: center;
+    padding: 0;
+    text-align: left;
     width: auto;
+  }
+
+  .editor-area :global(.mdx-block .mdx-pill-delete) {
+    background-color: transparent;
+    border: 0;
+    border-radius: 999px;
+    color: $color-error;
+    flex: 0 0 auto;
+    font-size: $fs-sm;
+    line-height: 1;
+    min-height: 1.45rem;
+    min-width: 1.45rem;
+    padding: 0;
+
+    &:hover {
+      background-color: rgba($color-error, 0.14);
+      color: $color-error;
+    }
   }
 
   .editor-area :global(.mdx-preview-card) {
@@ -1246,8 +1292,22 @@
     display: inline-flex;
     font-size: $fs-sm;
     font-weight: 800;
-    padding: 0.45rem 1rem;
+    gap: 0.2rem;
+    padding: 0.2rem 0.35rem 0.2rem 0.85rem;
     width: fit-content;
+  }
+
+  .editor-area :global(.mdx-block .mdx-button-label) {
+    background-color: transparent;
+    border: 0;
+    color: inherit;
+    min-height: 1.8rem;
+    padding: 0 0.2rem;
+
+    &:hover {
+      background-color: transparent;
+      color: inherit;
+    }
   }
 
   .editor-area :global(.mdx-button-preview--secondary) {
@@ -1283,48 +1343,117 @@
   .editor-area :global(.mdx-table-preview) {
     display: grid;
     gap: 0.65rem;
+  }
+
+  .editor-area :global(.mdx-table-canvas) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 2.25rem;
+    grid-template-rows: minmax(0, auto) 2.25rem;
+    position: relative;
+  }
+
+  .editor-area :global(.mdx-table-scroll) {
+    background-color: var(--admin-paper);
+    border: 1px solid rgba($color-accent-1, 0.65);
+    border-radius: 5px 0 0 0;
     overflow-x: auto;
   }
 
   .editor-area :global(.mdx-preview-table) {
-    border: 1px solid $color-accent-1;
-    border-collapse: separate;
-    border-radius: 5px;
-    border-spacing: 0;
-    overflow: hidden;
+    border-collapse: collapse;
+    min-width: 100%;
     width: 100%;
   }
 
   .editor-area :global(.mdx-preview-table th),
   .editor-area :global(.mdx-preview-table td) {
-    border: 1px solid $color-accent-1;
+    border: 1px solid rgba($color-accent-1, 0.28);
     padding: 0.35rem;
   }
 
   .editor-area :global(.mdx-preview-table th) {
-    background-color: $color-accent-1;
-    color: $color-white;
+    background-color: rgba($color-accent-1, 0.08);
+    color: $color-text;
   }
 
   .editor-area :global(.mdx-preview-table th) {
-    min-width: 8rem;
+    min-width: 12rem;
     vertical-align: top;
   }
 
   .editor-area :global(.mdx-preview-table th input) {
     background-color: transparent;
-    border-color: rgba($color-white, 0.45);
-    color: $color-white;
+    border-color: transparent;
+    color: $color-text;
+    font-weight: 800;
+    padding: 0.35rem;
   }
 
-  .editor-area :global(.mdx-table-row-action) {
-    width: 1%;
+  .editor-area :global(.mdx-preview-table td input) {
+    background-color: transparent;
+    border-color: transparent;
+    min-height: 2.35rem;
   }
 
-  .editor-area :global(.mdx-table-actions) {
+  .editor-area :global(.mdx-table-header-cell) {
+    align-items: center;
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.45rem;
+    gap: 0.25rem;
+  }
+
+  .editor-area :global(.mdx-table-handle-cell) {
+    min-width: 2.4rem;
+    width: 2.4rem;
+  }
+
+  .editor-area :global(.mdx-table-grip) {
+    color: rgba($color-accent-1, 0.65);
+    display: inline-flex;
+    font-weight: 800;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .editor-area :global(.mdx-block .mdx-table-mini-action) {
+    background-color: transparent;
+    border: 0;
+    color: rgba($color-text, 0.55);
+    min-height: 1.6rem;
+    min-width: 1.6rem;
+    padding: 0;
+
+    &:hover {
+      background-color: rgba($color-error, 0.12);
+      color: $color-error;
+    }
+  }
+
+  .editor-area :global(.mdx-table-add-column),
+  .editor-area :global(.mdx-table-add-row) {
+    background-color: rgba($color-text, 0.04);
+    border: 1px solid rgba($color-accent-1, 0.18);
+    color: rgba($color-text, 0.55);
+    font-size: $fs-lg;
+    min-height: 100%;
+    min-width: 100%;
+    padding: 0;
+
+    &:hover {
+      background-color: rgba($color-accent-2, 0.45);
+      color: $color-text;
+    }
+  }
+
+  .editor-area :global(.mdx-table-add-column) {
+    border-radius: 0 5px 0 0;
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .editor-area :global(.mdx-table-add-row) {
+    border-radius: 0 0 5px 5px;
+    grid-column: 1 / 3;
+    grid-row: 2;
   }
 
   .editor-area :global(.mdx-table-caption) {

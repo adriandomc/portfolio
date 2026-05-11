@@ -252,6 +252,7 @@ function componentNodeView(
   let draggingSortIndex: number | null = null;
   let openButtonPopoverIndex: number | null = null;
   let standaloneButtonPopover = false;
+  let collapsed = false;
 
   const dom = document.createElement("section");
   dom.className = `mdx-block mdx-block--${spec.tiptapName}`;
@@ -298,19 +299,21 @@ function componentNodeView(
 
   function shell(inner: string, compact = false): string {
     if (compact) {
-      return `
-        <div class="mdx-compact-actions">
-          <button class="mdx-inline-control mdx-icon-danger" type="button" data-action="delete" aria-label="Delete ${spec.name}">X</button>
-        </div>
-        ${inner}
-      `;
+      return inner;
     }
     return `
       <div class="mdx-block-head">
-        <span class="mdx-block-label">${spec.name}</span>
+        <div class="mdx-block-title">
+          <button class="mdx-inline-control mdx-collapse-toggle" type="button" data-action="toggle-collapse" aria-label="${collapsed ? "Expand" : "Collapse"} ${spec.name}">
+            ${collapsed ? "+" : "-"}
+          </button>
+          <span class="mdx-block-label">${spec.name}</span>
+        </div>
         <button class="mdx-inline-control mdx-icon-danger" type="button" data-action="delete" aria-label="Delete ${spec.name}">X</button>
       </div>
-      ${inner}
+      <div class="mdx-block-body ${collapsed ? "is-collapsed" : ""}">
+        ${collapsed ? `<p class="mdx-collapsed-copy">${spec.name} collapsed</p>` : inner}
+      </div>
     `;
   }
 
@@ -422,7 +425,10 @@ function componentNodeView(
   function renderBadge(attrs: Record<string, unknown>) {
     const title = String(attrs.title ?? "");
     return shell(
-      `<input class="mdx-inline-control mdx-preview-badge" data-field="title" value="${escapeHtml(title)}" placeholder="Badge" style="width: ${badgeWidth(title)}ch;" />`,
+      `<span class="mdx-editable-pill mdx-editable-badge">
+        <input class="mdx-inline-control mdx-preview-badge" data-field="title" value="${escapeHtml(title)}" placeholder="Badge" style="width: ${badgeWidth(title)}ch;" />
+        <button class="mdx-inline-control mdx-pill-delete" type="button" data-action="delete" aria-label="Delete badge">X</button>
+      </span>`,
       true,
     );
   }
@@ -464,9 +470,12 @@ function componentNodeView(
     return shell(
       `
         <div class="mdx-button-inline-wrap">
-          <button class="mdx-inline-control mdx-button-preview mdx-button-preview--${escapeHtml(variant)}" type="button" data-action="toggle-button-popover">
-            ${escapeHtml(attrs.label || "Button")}
-          </button>
+          <span class="mdx-editable-button mdx-button-preview mdx-button-preview--${escapeHtml(variant)}">
+            <button class="mdx-inline-control mdx-button-label" type="button" data-action="toggle-button-popover">
+              ${escapeHtml(attrs.label || "Button")}
+            </button>
+            <button class="mdx-inline-control mdx-pill-delete" type="button" data-action="delete" aria-label="Delete button">X</button>
+          </span>
           ${standaloneButtonPopover ? renderButtonFields(null, attrs) : ""}
         </div>
       `,
@@ -479,43 +488,51 @@ function componentNodeView(
     const rows = effectiveRows(attrs.data, headers);
     return shell(`
       <div class="mdx-table-preview">
-        <table class="mdx-preview-table">
-          <thead>
-            <tr>
-              ${headers
-                .map(
-                  (header, index) => `
-                    <th>
-                      <input class="mdx-inline-control" data-header-index="${index}" value="${escapeHtml(header)}" />
-                      <button class="mdx-inline-control mdx-icon-danger" type="button" data-action="remove-column" data-index="${index}" ${headers.length < 2 ? "disabled" : ""} aria-label="Remove column">X</button>
-                    </th>
-                  `,
-                )
-                .join("")}
-              <th class="mdx-table-row-action">Rows</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows
-              .map(
-                (row, rowIndex) => `
-                  <tr>
-                    ${headers
-                      .map(
-                        (header, colIndex) =>
-                          `<td><input class="mdx-inline-control" data-table-row="${rowIndex}" data-table-col="${colIndex}" value="${escapeHtml(row[header])}" /></td>`,
-                      )
-                      .join("")}
-                    <td><button class="mdx-inline-control mdx-danger" type="button" data-action="remove-row" data-index="${rowIndex}" ${rows.length < 2 ? "disabled" : ""}>Remove</button></td>
-                  </tr>
-                `,
-              )
-              .join("")}
-          </tbody>
-        </table>
-        <div class="mdx-table-actions">
-          <button class="mdx-inline-control" type="button" data-action="add-column">Add column</button>
-          <button class="mdx-inline-control" type="button" data-action="add-row">Add row</button>
+        <div class="mdx-table-canvas">
+          <div class="mdx-table-scroll">
+            <table class="mdx-preview-table">
+              <thead>
+                <tr>
+                  <th class="mdx-table-handle-cell">
+                    <span class="mdx-table-grip" aria-hidden="true">::</span>
+                  </th>
+                  ${headers
+                    .map(
+                      (header, index) => `
+                        <th>
+                          <div class="mdx-table-header-cell">
+                            <input class="mdx-inline-control" data-header-index="${index}" value="${escapeHtml(header)}" />
+                            <button class="mdx-inline-control mdx-table-mini-action" type="button" data-action="remove-column" data-index="${index}" ${headers.length < 2 ? "disabled" : ""} aria-label="Remove column">X</button>
+                          </div>
+                        </th>
+                      `,
+                    )
+                    .join("")}
+                </tr>
+              </thead>
+              <tbody>
+                ${rows
+                  .map(
+                    (row, rowIndex) => `
+                      <tr>
+                        <th class="mdx-table-handle-cell">
+                          <button class="mdx-inline-control mdx-table-mini-action" type="button" data-action="remove-row" data-index="${rowIndex}" ${rows.length < 2 ? "disabled" : ""} aria-label="Remove row">X</button>
+                        </th>
+                        ${headers
+                          .map(
+                            (header, colIndex) =>
+                              `<td><input class="mdx-inline-control" data-table-row="${rowIndex}" data-table-col="${colIndex}" value="${escapeHtml(row[header])}" /></td>`,
+                          )
+                          .join("")}
+                      </tr>
+                    `,
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+          </div>
+          <button class="mdx-inline-control mdx-table-add-column" type="button" data-action="add-column" aria-label="Add column">+</button>
+          <button class="mdx-inline-control mdx-table-add-row" type="button" data-action="add-row" aria-label="Add row">+</button>
         </div>
         <label class="mdx-table-caption"><span>Caption</span><input class="mdx-inline-control" data-field="caption" value="${escapeHtml(attrs.caption)}" /></label>
       </div>
@@ -528,19 +545,20 @@ function componentNodeView(
       .map((item, index) => {
         if (item.type === "Badge") {
           return `
-            <span class="mdx-row-item mdx-row-badge">
+            <span class="mdx-row-item mdx-editable-pill mdx-editable-badge">
               <input class="mdx-inline-control mdx-preview-badge" data-row-index="${index}" data-row-field="title" value="${escapeHtml(item.title)}" placeholder="Badge" style="width: ${badgeWidth(item.title)}ch;" />
-              <button class="mdx-inline-control mdx-icon-danger" type="button" data-action="remove-row-item" data-index="${index}" aria-label="Remove badge">X</button>
+              <button class="mdx-inline-control mdx-pill-delete" type="button" data-action="remove-row-item" data-index="${index}" aria-label="Remove badge">X</button>
             </span>
           `;
         }
         return `
           <span class="mdx-row-item mdx-row-button">
-            <button class="mdx-inline-control mdx-button-preview mdx-button-preview--${escapeHtml(item.variant)}" type="button" data-action="toggle-row-button-popover" data-index="${index}">
-              ${escapeHtml(item.label || "Button")}
-            </button>
-            <button class="mdx-inline-control mdx-icon-button" type="button" data-action="toggle-row-button-popover" data-index="${index}" aria-label="Edit button">Edit</button>
-            <button class="mdx-inline-control mdx-icon-danger" type="button" data-action="remove-row-item" data-index="${index}" aria-label="Remove button">X</button>
+            <span class="mdx-editable-button mdx-button-preview mdx-button-preview--${escapeHtml(item.variant)}">
+              <button class="mdx-inline-control mdx-button-label" type="button" data-action="toggle-row-button-popover" data-index="${index}">
+                ${escapeHtml(item.label || "Button")}
+              </button>
+              <button class="mdx-inline-control mdx-pill-delete" type="button" data-action="remove-row-item" data-index="${index}" aria-label="Remove button">X</button>
+            </span>
             ${openButtonPopoverIndex === index ? renderButtonFields(index, item) : ""}
           </span>
         `;
@@ -590,6 +608,11 @@ function componentNodeView(
 
     if (action === "delete") {
       deleteNode();
+      return;
+    }
+    if (action === "toggle-collapse") {
+      collapsed = !collapsed;
+      render();
       return;
     }
     if (action === "pick-figure") {
