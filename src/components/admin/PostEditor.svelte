@@ -975,14 +975,7 @@
   }
 
   .editor-area :global(.mdx-block-body.is-collapsed) {
-    display: block;
-  }
-
-  .editor-area :global(.mdx-collapsed-copy) {
-    color: $color-accent-1;
-    font-size: $fs-sm;
-    font-weight: 800;
-    margin: 0;
+    display: none;
   }
 
   .editor-area :global(.mdx-block button),
@@ -1219,7 +1212,7 @@
 
   .editor-area :global(.mdx-editable-pill) {
     align-items: center;
-    background-color: $color-accent-2;
+    background-color: $color-accent-1;
     border: 1px solid transparent;
     border-radius: 999px;
     display: inline-flex;
@@ -1232,7 +1225,7 @@
   .editor-area :global(.mdx-preview-badge) {
     background-color: transparent;
     border: 0;
-    color: $color-text;
+    color: $color-white;
     font-size: $fs-sm;
     font-weight: 800;
     max-width: 100%;
@@ -1240,6 +1233,14 @@
     padding: 0;
     text-align: left;
     width: auto;
+  }
+
+  .editor-area :global(.mdx-block .mdx-editable-badge .mdx-preview-badge) {
+    background-color: transparent;
+    border: 0;
+    box-shadow: none;
+    color: $color-white;
+    padding: 0;
   }
 
   .editor-area :global(.mdx-block .mdx-pill-delete) {

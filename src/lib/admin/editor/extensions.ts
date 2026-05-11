@@ -312,7 +312,7 @@ function componentNodeView(
         <button class="mdx-inline-control mdx-icon-danger" type="button" data-action="delete" aria-label="Delete ${spec.name}">X</button>
       </div>
       <div class="mdx-block-body ${collapsed ? "is-collapsed" : ""}">
-        ${collapsed ? `<p class="mdx-collapsed-copy">${spec.name} collapsed</p>` : inner}
+        ${collapsed ? "" : inner}
       </div>
     `;
   }
