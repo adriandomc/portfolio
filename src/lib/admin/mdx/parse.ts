@@ -185,7 +185,7 @@ function convertBlock(node: RootContent): TiptapNode[] {
       return [
         {
           type: "codeBlock",
-          attrs: { language: node.lang ?? null },
+          attrs: { language: node.lang ?? "text" },
           content: [{ type: "text", text: node.value }],
         },
       ];

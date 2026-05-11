@@ -130,17 +130,38 @@ const formattedDate = date.toLocaleDateString("en-US", {
 
     :global(pre) {
       background-color: $color-accent-1;
+      border: 1px solid $color-accent-1;
+      position: relative;
       color: $color-white;
-      padding: 1rem;
+      padding: 2.65rem 1rem 1rem;
       border-radius: 5px;
       overflow-x: auto;
       margin-bottom: 1.5rem;
 
       :global(code) {
         background: none;
+        display: block;
         padding: 0;
         font-size: $fs-sm;
       }
+    }
+
+    :global(pre[data-language]::before) {
+      background-color: $color-primary;
+      border: 1px solid rgba($color-white, 0.25);
+      border-radius: 4px;
+      color: $color-text;
+      content: attr(data-language);
+      font-size: $fs-xs;
+      font-weight: 800;
+      left: 0.75rem;
+      letter-spacing: 0.08em;
+      line-height: 1;
+      padding: 0.35rem 0.5rem;
+      position: absolute;
+      text-transform: uppercase;
+      top: 0.65rem;
+      z-index: 1;
     }
 
     :global(blockquote) {

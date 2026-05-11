@@ -23,6 +23,7 @@
     createCustomComponentExtensions,
     type MdxMediaPickerRequest,
   } from "../../lib/admin/editor/extensions";
+  import { AdminCodeBlock } from "../../lib/admin/editor/code-block";
   import type {
     BlogFrontmatter,
     Collection,
@@ -111,7 +112,8 @@
     editor = new Editor({
       element: editorEl,
       extensions: [
-        StarterKit.configure({ codeBlock: { HTMLAttributes: {} } }),
+        StarterKit.configure({ codeBlock: false }),
+        AdminCodeBlock,
         Link.configure({
           openOnClick: false,
           HTMLAttributes: { rel: "noopener noreferrer" },
@@ -409,7 +411,7 @@
       <button type="button" class:active={isActive("blockquote")} onclick={() => exec(() => editor!.chain().focus().toggleBlockquote().run())} aria-label="Quote">
         <Quote size={16} />
       </button>
-      <button type="button" class:active={isActive("codeBlock")} onclick={() => exec(() => editor!.chain().focus().toggleCodeBlock().run())} aria-label="Code block">
+      <button type="button" class:active={isActive("codeBlock")} onclick={() => exec(() => editor!.chain().focus().toggleCodeBlock({ language: "text" }).run())} aria-label="Code block">
         <Code size={16} />
       </button>
       <span class="sep"></span>
@@ -783,6 +785,82 @@
     background-color: $color-tertiary;
     border-radius: 3px;
     padding: 0.08rem 0.25rem;
+  }
+
+  .editor-area :global(.admin-code-block) {
+    background-color: $color-accent-1;
+    border: 1px solid $color-accent-1;
+    border-radius: 5px;
+    display: grid;
+    gap: 0;
+    grid-template-columns: 8.25rem minmax(0, 1fr);
+    margin: 1rem 0;
+    overflow: hidden;
+
+    @media (max-width: #{$breakpoint-tablet - 1px}) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .editor-area :global(.admin-code-block__rail) {
+    align-content: start;
+    background-color: rgba($color-primary, 0.88);
+    border-right: 1px solid rgba($color-white, 0.24);
+    display: grid;
+    gap: 0.45rem;
+    padding: 0.65rem;
+
+    @media (max-width: #{$breakpoint-tablet - 1px}) {
+      border-bottom: 1px solid rgba($color-white, 0.24);
+      border-right: 0;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: center;
+    }
+  }
+
+  .editor-area :global(.admin-code-block__badge) {
+    background-color: $color-accent-1;
+    border-radius: 4px;
+    color: $color-white;
+    display: inline-flex;
+    font-size: $fs-xs;
+    font-weight: 800;
+    justify-content: center;
+    padding: 0.2rem 0.45rem;
+    text-transform: uppercase;
+    width: fit-content;
+  }
+
+  .editor-area :global(.admin-code-block__select) {
+    background-color: var(--admin-paper);
+    border: 1px solid $color-accent-1;
+    border-radius: 5px;
+    color: $color-text;
+    font-family: "JetBrains Mono", monospace;
+    font-size: $fs-xs;
+    font-weight: 800;
+    min-width: 0;
+    padding: 0.45rem 0.5rem;
+    width: 100%;
+  }
+
+  .editor-area :global(.admin-code-block__pre) {
+    background-color: $color-text;
+    border-radius: 0;
+    margin: 0;
+    min-height: 8rem;
+    overflow-x: auto;
+    padding: 0.9rem 1rem;
+  }
+
+  .editor-area :global(.admin-code-block__code) {
+    background: transparent;
+    color: $color-white;
+    display: block;
+    font-size: $fs-sm;
+    min-height: 6rem;
+    padding: 0;
+    white-space: pre;
   }
 
   .editor-area :global(.mdx-block) {
