@@ -9,7 +9,25 @@ import {
 } from "./github";
 import { COLLECTIONS, slugFromPath, type Collection } from "./posts";
 
-export type MediaRoot = "images" | "assets";
+export type MediaKind = "image" | "document" | "file";
+
+export const MEDIA_ROOT_CONFIG = {
+  images: {
+    publicPath: "/images",
+    repoPath: "public/images",
+    acceptedKinds: ["image"],
+  },
+} as const satisfies Record<
+  string,
+  {
+    publicPath: `/${string}`;
+    repoPath: `public/${string}`;
+    acceptedKinds: readonly MediaKind[];
+  }
+>;
+
+export type MediaRoot = keyof typeof MEDIA_ROOT_CONFIG;
+export const MEDIA_ROOTS = Object.keys(MEDIA_ROOT_CONFIG) as MediaRoot[];
 
 export interface MediaReference {
   collection: Collection;
@@ -23,6 +41,7 @@ export interface MediaItem {
   path: string;
   repoPath: string;
   root: MediaRoot;
+  kind: MediaKind;
   folder: string;
   name: string;
   size: number;
@@ -64,7 +83,6 @@ export class MediaError extends Error {
   }
 }
 
-export const MEDIA_ROOTS: MediaRoot[] = ["images", "assets"];
 export const MAX_MEDIA_SIZE = 10 * 1024 * 1024;
 
 export const MIME_EXTENSIONS: Record<string, string> = {
@@ -77,6 +95,11 @@ export const MIME_EXTENSIONS: Record<string, string> = {
 };
 
 const IMAGE_EXTENSIONS = new Set(Object.values(MIME_EXTENSIONS));
+const MEDIA_KIND_EXTENSIONS: Record<MediaKind, Set<string>> = {
+  image: IMAGE_EXTENSIONS,
+  document: new Set(),
+  file: new Set(),
+};
 const FOLDER_PLACEHOLDER = ".gitkeep";
 
 function countOccurrences(input: string, needle: string): number {
@@ -100,10 +123,33 @@ function splitMatter(content: string): { frontmatter: string; body: string } {
   };
 }
 
+function rootForRepoPath(repoPath: string): MediaRoot | null {
+  return (
+    MEDIA_ROOTS.find((root) => repoPath.startsWith(`${MEDIA_ROOT_CONFIG[root].repoPath}/`)) ??
+    null
+  );
+}
+
+function mediaKindForExtension(ext: string): MediaKind | null {
+  for (const [kind, extensions] of Object.entries(MEDIA_KIND_EXTENSIONS)) {
+    if (extensions.has(ext)) return kind as MediaKind;
+  }
+  return null;
+}
+
+function mediaKindForMime(type: string): MediaKind | null {
+  const ext = MIME_EXTENSIONS[type];
+  return ext ? mediaKindForExtension(ext) : null;
+}
+
+function rootAcceptsKind(root: MediaRoot, kind: MediaKind): boolean {
+  return (MEDIA_ROOT_CONFIG[root].acceptedKinds as readonly MediaKind[]).includes(kind);
+}
+
 function normalizeRoot(value: unknown): MediaRoot {
   const root = String(value ?? "images").replace(/^\/+|\/+$/g, "");
-  if (root === "images" || root === "assets") return root;
-  throw new MediaError("Media root must be either images or assets.");
+  if (root in MEDIA_ROOT_CONFIG) return root as MediaRoot;
+  throw new MediaError(`Media root must be one of: ${MEDIA_ROOTS.join(", ")}.`);
 }
 
 function normalizeFolder(value: unknown): string {
@@ -134,13 +180,17 @@ function normalizeFilename(
   value: unknown,
   fallback: string,
   forcedExt?: string,
+  root?: MediaRoot,
 ): string {
   const raw = String(value || fallback || "image").replaceAll("\\", "/");
   const baseName = raw.split("/").pop() ?? "image";
   const parsed = path.posix.parse(baseName);
   const ext = (forcedExt || parsed.ext.replace(/^\./, "")).toLowerCase();
-  if (!IMAGE_EXTENSIONS.has(ext)) {
+  if (!mediaKindForExtension(ext)) {
     throw new MediaError(`Unsupported image extension: ${ext || "(none)"}`);
+  }
+  if (root && !rootAcceptsKind(root, mediaKindForExtension(ext)!)) {
+    throw new MediaError(`/${root} does not accept ${mediaKindForExtension(ext)} files.`);
   }
   const stem = (parsed.name || "image")
     .toLowerCase()
@@ -153,11 +203,11 @@ function normalizeFilename(
 }
 
 function repoPathFor(root: MediaRoot, folder: string, filename: string): string {
-  return ["public", root, folder, filename].filter(Boolean).join("/");
+  return [MEDIA_ROOT_CONFIG[root].repoPath, folder, filename].filter(Boolean).join("/");
 }
 
 function folderRepoPathFor(root: MediaRoot, folder: string): string {
-  return ["public", root, folder].filter(Boolean).join("/");
+  return [MEDIA_ROOT_CONFIG[root].repoPath, folder].filter(Boolean).join("/");
 }
 
 function placeholderPathFor(root: MediaRoot, folder: string): string {
@@ -173,41 +223,45 @@ export function publicPathFromRepoPath(repoPath: string): string {
 
 function assertMediaRepoPath(repoPath: string): {
   root: MediaRoot;
+  kind: MediaKind;
   folder: string;
   name: string;
   ext: string;
 } {
   const normalized = repoPath.replaceAll("\\", "/").replace(/^\/+/, "");
-  const match = normalized.match(/^public\/(images|assets)\/(.+)$/);
-  if (!match) {
-    throw new MediaError("Media path must live under public/images or public/assets.");
+  const root = rootForRepoPath(normalized);
+  if (!root) {
+    throw new MediaError(
+      `Media path must live under ${MEDIA_ROOTS.map((item) => MEDIA_ROOT_CONFIG[item].repoPath).join(" or ")}.`,
+    );
   }
-  const root = normalizeRoot(match[1]);
   const name = normalized.split("/").pop() ?? "";
   const ext = path.posix.extname(name).replace(/^\./, "").toLowerCase();
-  if (!IMAGE_EXTENSIONS.has(ext)) {
-    throw new MediaError("Only image files can be managed here.");
+  const kind = mediaKindForExtension(ext);
+  if (!kind || !rootAcceptsKind(root, kind)) {
+    throw new MediaError("Unsupported media file type.");
   }
   if (normalized.split("/").some((segment) => segment === "..")) {
     throw new MediaError("Invalid media path.");
   }
   const folder = normalized
-    .slice(`public/${root}/`.length)
+    .slice(`${MEDIA_ROOT_CONFIG[root].repoPath}/`.length)
     .split("/")
     .slice(0, -1)
     .join("/");
-  return { root, folder, name, ext };
+  return { root, kind, folder, name, ext };
 }
 
 function itemFromFile(
   file: RepoFile,
   refs: MediaReference[] = [],
 ): MediaItem {
-  const { root, folder, name } = assertMediaRepoPath(file.path);
+  const { root, kind, folder, name } = assertMediaRepoPath(file.path);
   return {
     path: publicPathFromRepoPath(file.path),
     repoPath: file.path,
     root,
+    kind,
     folder,
     name,
     size: file.size,
@@ -311,10 +365,12 @@ export async function findMediaReferences(
   return map;
 }
 
-function isImageRepoFile(file: RepoFile): boolean {
+function isManagedMediaRepoFile(file: RepoFile): boolean {
   const name = file.path.split("/").pop() ?? "";
   const ext = path.posix.extname(name).replace(/^\./, "").toLowerCase();
-  return IMAGE_EXTENSIONS.has(ext) && name !== ".DS_Store";
+  const root = rootForRepoPath(file.path.replaceAll("\\", "/").replace(/^\/+/, ""));
+  const kind = mediaKindForExtension(ext);
+  return Boolean(root && kind && rootAcceptsKind(root, kind) && name !== ".DS_Store");
 }
 
 function foldersFromFiles(files: RepoFile[], items: MediaItem[]): MediaFolder[] {
@@ -331,12 +387,14 @@ function foldersFromFiles(files: RepoFile[], items: MediaItem[]): MediaFolder[] 
 
   for (const file of files) {
     const normalized = file.path.replaceAll("\\", "/").replace(/^\/+/, "");
-    const match = normalized.match(/^public\/(images|assets)\/(.+)$/);
-    if (!match) continue;
-    if (!isImageRepoFile(file) && !isPlaceholderFile(file)) continue;
+    const root = rootForRepoPath(normalized);
+    if (!root) continue;
+    if (!isManagedMediaRepoFile(file) && !isPlaceholderFile(file)) continue;
 
-    const root = normalizeRoot(match[1]);
-    const relParts = match[2].split("/").filter(Boolean);
+    const relParts = normalized
+      .slice(`${MEDIA_ROOT_CONFIG[root].repoPath}/`.length)
+      .split("/")
+      .filter(Boolean);
     const folderParts = relParts.slice(0, -1);
     for (let index = 1; index <= folderParts.length; index += 1) {
       ensure(root, folderParts.slice(0, index).join("/"));
@@ -367,10 +425,10 @@ export async function listMediaLibrary(): Promise<{
 }> {
   const allFiles = (
     await Promise.all(
-      MEDIA_ROOTS.map((root) => listDirRecursive(`public/${root}`)),
+      MEDIA_ROOTS.map((root) => listDirRecursive(MEDIA_ROOT_CONFIG[root].repoPath)),
     )
   ).flat().filter((file) => !isIgnoredRepoFile(file));
-  const files = allFiles.filter(isImageRepoFile);
+  const files = allFiles.filter(isManagedMediaRepoFile);
 
   const refMap = await findMediaReferences(files.map((file) => file.path));
   const items = files
@@ -511,8 +569,12 @@ export async function uploadMedia(args: {
   if (!ext) throw new MediaError(`Unsupported type: ${args.type}`);
 
   const root = normalizeRoot(args.root);
+  const kind = mediaKindForMime(args.type);
+  if (!kind || !rootAcceptsKind(root, kind)) {
+    throw new MediaError(`/${root} does not accept ${kind ?? "unknown"} files.`);
+  }
   const folder = normalizeFolder(args.folder);
-  const filename = normalizeFilename(args.filename, args.fileName, ext);
+  const filename = normalizeFilename(args.filename, args.fileName, ext, root);
   const repoPath = repoPathFor(root, folder, filename);
   const existing = await getBinaryFile(repoPath);
   if (existing) {
@@ -545,7 +607,7 @@ export async function createMediaFolder(args: {
   if (!folder) throw new MediaError("Folder name is required.");
 
   const prefix = `${folderRepoPathFor(root, folder)}/`;
-  const files = await listDirRecursive(`public/${root}`);
+  const files = await listDirRecursive(MEDIA_ROOT_CONFIG[root].repoPath);
   if (files.some((file) => file.path.startsWith(prefix))) {
     throw new MediaError(`Folder already exists at /${root}/${folder}.`, 409);
   }
@@ -581,8 +643,8 @@ export async function moveMediaFolder(args: {
   if (!folder) throw new MediaError("Root media folders cannot be renamed.");
   if (!nextFolder) throw new MediaError("Folder name is required.");
 
-  const oldPrefix = `public/${root}/${folder}/`;
-  const nextPrefix = `public/${nextRoot}/${nextFolder}/`;
+  const oldPrefix = `${folderRepoPathFor(root, folder)}/`;
+  const nextPrefix = `${folderRepoPathFor(nextRoot, nextFolder)}/`;
   if (oldPrefix === nextPrefix) {
     return { items: [], references: [], updatedFiles: [] };
   }
@@ -590,12 +652,12 @@ export async function moveMediaFolder(args: {
     throw new MediaError("A folder cannot be moved into itself.");
   }
 
-  const files = (await listDirRecursive(`public/${root}`))
-    .filter((file) => isImageRepoFile(file) || isPlaceholderFile(file))
+  const files = (await listDirRecursive(MEDIA_ROOT_CONFIG[root].repoPath))
+    .filter((file) => isManagedMediaRepoFile(file) || isPlaceholderFile(file))
     .filter((file) => file.path.startsWith(oldPrefix));
   if (files.length === 0) throw new MediaError("Folder not found.", 404);
 
-  const nextFiles = await listDirRecursive(`public/${nextRoot}`);
+  const nextFiles = await listDirRecursive(MEDIA_ROOT_CONFIG[nextRoot].repoPath);
   if (nextFiles.some((file) => file.path.startsWith(nextPrefix))) {
     throw new MediaError(`Folder already exists at /${nextRoot}/${nextFolder}.`, 409);
   }
@@ -618,7 +680,7 @@ export async function moveMediaFolder(args: {
   );
 
   const replacements = binaries
-    .filter(({ file }) => isImageRepoFile(file))
+    .filter(({ file }) => isManagedMediaRepoFile(file))
     .map(({ file, nextRepoPath }) => ({
       oldPublicPath: publicPathFromRepoPath(file.path),
       nextPublicPath: publicPathFromRepoPath(nextRepoPath),
@@ -639,10 +701,10 @@ export async function moveMediaFolder(args: {
 
   const refsByPath = await findMediaReferences(
     binaries
-      .filter(({ file }) => isImageRepoFile(file))
+      .filter(({ file }) => isManagedMediaRepoFile(file))
       .map(({ nextRepoPath }) => nextRepoPath),
   );
-  const movedImages = binaries.filter(({ file }) => isImageRepoFile(file));
+  const movedImages = binaries.filter(({ file }) => isManagedMediaRepoFile(file));
   return {
     items: movedImages.map(({ binary, nextRepoPath }) =>
       itemFromFile(
@@ -659,7 +721,7 @@ export async function moveMediaFolder(args: {
       nextFolder,
       movedImages.filter(({ nextRepoPath }) => {
         const currentFolder = nextRepoPath
-          .slice(`public/${nextRoot}/`.length)
+          .slice(`${MEDIA_ROOT_CONFIG[nextRoot].repoPath}/`.length)
           .split("/")
           .slice(0, -1)
           .join("/");
@@ -689,7 +751,7 @@ export async function moveMedia(args: {
   const filename =
     args.filename === undefined
       ? current.name
-      : normalizeFilename(args.filename, current.name, current.ext);
+      : normalizeFilename(args.filename, current.name, current.ext, root);
   const nextRepoPath = repoPathFor(root, folder, filename);
 
   if (nextRepoPath === args.repoPath) {
@@ -742,14 +804,14 @@ export async function deleteMediaFolder(args: {
   const folder = normalizeFolder(args.folder);
   if (!folder) throw new MediaError("Root media folders cannot be deleted.");
 
-  const prefix = `public/${root}/${folder}/`;
-  const files = (await listDirRecursive(`public/${root}`))
-    .filter((file) => isImageRepoFile(file) || isPlaceholderFile(file))
+  const prefix = `${folderRepoPathFor(root, folder)}/`;
+  const files = (await listDirRecursive(MEDIA_ROOT_CONFIG[root].repoPath))
+    .filter((file) => isManagedMediaRepoFile(file) || isPlaceholderFile(file))
     .filter((file) => file.path.startsWith(prefix));
   if (files.length === 0) throw new MediaError("Folder not found.", 404);
 
   const refMap = await findMediaReferences(
-    files.filter(isImageRepoFile).map((file) => file.path),
+    files.filter(isManagedMediaRepoFile).map((file) => file.path),
   );
   const references = [...refMap.values()].flat();
   if (references.length > 0 && !args.force) {

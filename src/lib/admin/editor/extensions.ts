@@ -11,8 +11,16 @@ interface ImageAttr {
   alt: string;
 }
 
-type MediaRoot = "images" | "assets";
-type MaybeGetter<T> = T | (() => T);
+type RowItem =
+  | { type: "Badge"; title: string }
+  | {
+      type: "Button";
+      label: string;
+      href: string;
+      variant: "primary" | "secondary" | "danger" | "warning";
+      target: string | null;
+      buttonType: "button" | "submit" | "reset";
+    };
 
 export type MdxMediaPickerRequest =
   | { kind: "blockFigure"; pos: number }
@@ -20,8 +28,6 @@ export type MdxMediaPickerRequest =
 
 export interface ComponentExtensionOptions {
   openMediaPicker?: (target: MdxMediaPickerRequest) => void;
-  uploadRoot?: MaybeGetter<MediaRoot>;
-  uploadFolder?: MaybeGetter<string>;
   onMediaError?: (message: string) => void;
 }
 
@@ -79,12 +85,20 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
     name: "Table",
     tiptapName: "mdxTable",
     defaultAttrs: {
-      headers: [],
-      data: [],
+      headers: ["Header 1"],
+      data: [{ "Header 1": "" }],
       caption: null,
     },
   },
 ];
+
+const COMPONENT_ROW_SPEC: ComponentSpec = {
+  name: "ComponentRow",
+  tiptapName: "mdxComponentRow",
+  defaultAttrs: {
+    items: [],
+  },
+};
 
 function escapeHtml(value: unknown): string {
   return String(value ?? "")
@@ -110,16 +124,85 @@ function headersList(value: unknown): string[] {
   return Array.isArray(value) ? value.map(String).filter(Boolean) : [];
 }
 
+function effectiveHeaders(value: unknown): string[] {
+  const headers = headersList(value);
+  return headers.length > 0 ? headers : ["Header 1"];
+}
+
 function rowList(value: unknown): Array<Record<string, unknown>> {
   return Array.isArray(value) ? (value as Array<Record<string, unknown>>) : [];
+}
+
+function effectiveRows(value: unknown, headers: string[]): Array<Record<string, unknown>> {
+  const rows = rowList(value);
+  return rows.length > 0
+    ? rows
+    : [Object.fromEntries(headers.map((header) => [header, ""]))];
+}
+
+function rowItems(value: unknown): RowItem[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      const raw = item as Record<string, unknown>;
+      if (raw.type === "Badge") {
+        return { type: "Badge" as const, title: String(raw.title ?? "") };
+      }
+      if (raw.type === "Button") {
+        return {
+          type: "Button" as const,
+          label: String(raw.label ?? ""),
+          href: String(raw.href ?? ""),
+          variant: ["primary", "secondary", "danger", "warning"].includes(String(raw.variant))
+            ? (String(raw.variant) as "primary" | "secondary" | "danger" | "warning")
+            : "primary",
+          target: raw.target ? String(raw.target) : null,
+          buttonType: ["button", "submit", "reset"].includes(String(raw.buttonType ?? raw.type))
+            ? (String(raw.buttonType ?? raw.type) as "button" | "submit" | "reset")
+            : "button",
+        };
+      }
+      return null;
+    })
+    .filter((item): item is RowItem => Boolean(item));
 }
 
 function cleanOptional(value: string): string | null {
   return value.trim() ? value : null;
 }
 
-function resolveOption<T>(value: MaybeGetter<T> | undefined, fallback: T): T {
-  return typeof value === "function" ? (value as () => T)() : (value ?? fallback);
+function badgeWidth(value: unknown): number {
+  return Math.max(5, Math.min(34, String(value ?? "").length + 2));
+}
+
+function buttonVariant(value: unknown): "primary" | "secondary" | "danger" | "warning" {
+  const variant = String(value ?? "primary");
+  return ["primary", "secondary", "danger", "warning"].includes(variant)
+    ? (variant as "primary" | "secondary" | "danger" | "warning")
+    : "primary";
+}
+
+function uniqueHeader(headers: string[]): string {
+  let index = headers.length + 1;
+  let candidate = `Header ${index}`;
+  while (headers.includes(candidate)) {
+    index += 1;
+    candidate = `Header ${index}`;
+  }
+  return candidate;
+}
+
+export function defaultRowItem(type: "Badge" | "Button"): RowItem {
+  return type === "Badge"
+    ? { type: "Badge", title: "Badge" }
+    : {
+        type: "Button",
+        label: "Button",
+        href: "",
+        variant: "primary",
+        target: null,
+        buttonType: "button",
+      };
 }
 
 function buildNode(spec: ComponentSpec, options: ComponentExtensionOptions) {
@@ -163,7 +246,13 @@ function componentNodeView(
   options: ComponentExtensionOptions,
 ) {
   let currentNode = props.node;
-  let draggingCarouselIndex: number | null = null;
+  let activeCarouselIndex = 0;
+  let sortOpen = false;
+  let sortDraft: ImageAttr[] = [];
+  let draggingSortIndex: number | null = null;
+  let openButtonPopoverIndex: number | null = null;
+  let standaloneButtonPopover = false;
+
   const dom = document.createElement("section");
   dom.className = `mdx-block mdx-block--${spec.tiptapName}`;
   dom.dataset.mdx = spec.name;
@@ -178,6 +267,7 @@ function componentNodeView(
     const currentPos = pos();
     if (currentPos === null) return;
     const nextAttrs = { ...currentNode.attrs, ...partial };
+    currentNode = currentNode.type.create(nextAttrs);
     props.editor.view.dispatch(
       props.editor.state.tr.setNodeMarkup(currentPos, undefined, nextAttrs),
     );
@@ -206,63 +296,19 @@ function componentNodeView(
     options.openMediaPicker?.({ kind: "blockCarousel", pos: currentPos, index });
   }
 
-  function reportMediaError(message: string) {
-    options.onMediaError?.(message);
-  }
-
-  async function uploadImage(file: File, applyPath: (path: string) => void) {
-    if (!file.type.startsWith("image/")) {
-      reportMediaError("Only image files can be uploaded here.");
-      return;
+  function shell(inner: string, compact = false): string {
+    if (compact) {
+      return `
+        <div class="mdx-compact-actions">
+          <button class="mdx-inline-control mdx-icon-danger" type="button" data-action="delete" aria-label="Delete ${spec.name}">X</button>
+        </div>
+        ${inner}
+      `;
     }
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("root", resolveOption(options.uploadRoot, "images"));
-    fd.append("folder", resolveOption(options.uploadFolder, ""));
-    try {
-      const res = await fetch("/api/admin/media", { method: "POST", body: fd });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error ?? `Upload failed with ${res.status}.`);
-      const path = String(data.item?.path ?? "");
-      if (!path) throw new Error("Upload finished without returning an image path.");
-      applyPath(path);
-    } catch (err) {
-      reportMediaError(err instanceof Error ? err.message : "Upload failed.");
-    }
-  }
-
-  function updateCarouselImage(index: number, partial: Partial<ImageAttr>) {
-    const images = imageList(currentNode.attrs.images);
-    images[index] = { ...(images[index] ?? { src: "", alt: "" }), ...partial };
-    setAttrs({ images }, true);
-  }
-
-  function appendCarouselImage(image: ImageAttr) {
-    setAttrs({ images: [...imageList(currentNode.attrs.images), image] }, true);
-  }
-
-  function reorderCarouselImages(fromIndex: number, toIndex: number) {
-    const images = imageList(currentNode.attrs.images);
-    if (
-      fromIndex === toIndex ||
-      fromIndex < 0 ||
-      toIndex < 0 ||
-      fromIndex >= images.length ||
-      toIndex >= images.length
-    ) {
-      return;
-    }
-    const [moving] = images.splice(fromIndex, 1);
-    images.splice(toIndex, 0, moving);
-    draggingCarouselIndex = toIndex;
-    setAttrs({ images }, true);
-  }
-
-  function shell(inner: string): string {
     return `
       <div class="mdx-block-head">
         <span class="mdx-block-label">${spec.name}</span>
-        <button class="mdx-inline-control mdx-danger" type="button" data-action="delete">Delete</button>
+        <button class="mdx-inline-control mdx-icon-danger" type="button" data-action="delete" aria-label="Delete ${spec.name}">X</button>
       </div>
       ${inner}
     `;
@@ -271,22 +317,14 @@ function componentNodeView(
   function renderFigure(attrs: Record<string, unknown>) {
     const src = String(attrs.src ?? "");
     return shell(`
-      <div class="mdx-figure-preview">
+      <button class="mdx-media-stage mdx-inline-control" type="button" data-action="pick-figure">
         ${
           src
             ? `<img src="${escapeHtml(src)}" alt="${escapeHtml(attrs.alt)}" />`
-            : `<button class="mdx-empty-media mdx-inline-control" type="button" data-action="pick-figure">
-                <span>Add image</span>
-              </button>`
+            : `<span>Pick/Upload image</span>`
         }
-      </div>
-      <div class="mdx-fields mdx-fields--media">
-        <label><span>Path</span><input class="mdx-inline-control" data-field="src" value="${escapeHtml(src)}" placeholder="/images/..." /></label>
-        <button class="mdx-inline-control" type="button" data-action="pick-figure">Pick</button>
-        <label class="mdx-upload-button mdx-inline-control">
-          Upload
-          <input type="file" accept="image/*" data-upload="figure" />
-        </label>
+      </button>
+      <div class="mdx-fields mdx-fields--figure">
         <label><span>Alt</span><input class="mdx-inline-control" data-field="alt" value="${escapeHtml(attrs.alt)}" /></label>
         <label><span>Caption</span><textarea class="mdx-inline-control" data-field="caption" rows="2">${escapeHtml(attrs.caption)}</textarea></label>
         <label><span>Width</span><input class="mdx-inline-control" data-field="width" value="${escapeHtml(attrs.width)}" /></label>
@@ -296,52 +334,64 @@ function componentNodeView(
     `);
   }
 
+  function renderSortModal() {
+    if (!sortOpen) return "";
+    const tiles = sortDraft
+      .map(
+        (image, index) => `
+          <article class="mdx-sort-item ${draggingSortIndex === index ? "is-dragging" : ""}" draggable="true" data-sort-index="${index}">
+            ${
+              image.src
+                ? `<img src="${escapeHtml(image.src)}" alt="${escapeHtml(image.alt)}" />`
+                : `<div class="mdx-sort-empty">No image</div>`
+            }
+            <span>${index + 1}</span>
+          </article>
+        `,
+      )
+      .join("");
+    return `
+      <div class="mdx-sort-backdrop">
+        <section class="mdx-sort-modal" role="dialog" aria-modal="true" aria-label="Sort carousel images">
+          <header>
+            <h3>Sort images</h3>
+            <button class="mdx-inline-control mdx-icon-danger" type="button" data-action="cancel-sort" aria-label="Close sort modal">X</button>
+          </header>
+          <div class="mdx-sort-grid">${tiles || `<p class="mdx-empty-copy">No images to sort.</p>`}</div>
+          <footer>
+            <button class="mdx-inline-control" type="button" data-action="cancel-sort">Cancel</button>
+            <button class="mdx-inline-control mdx-primary" type="button" data-action="save-sort">Save</button>
+          </footer>
+        </section>
+      </div>
+    `;
+  }
+
   function renderCarousel(attrs: Record<string, unknown>) {
     const images = imageList(attrs.images);
-    const tiles =
-      images.length > 0
-        ? images
-            .map(
-              (image, index) => `
-                <article class="mdx-carousel-item ${draggingCarouselIndex === index ? "is-dragging" : ""}" data-carousel-index="${index}" draggable="true">
-                  <div class="mdx-carousel-item-head">
-                    <button class="mdx-inline-control mdx-drag-handle" type="button" draggable="true" data-drag-handle data-index="${index}" aria-label="Drag to reorder image ${index + 1}">Grip</button>
-                    <span>${index + 1}</span>
-                  </div>
-                  ${
-                    image.src
-                      ? `<img src="${escapeHtml(image.src)}" alt="${escapeHtml(image.alt)}" />`
-                      : `<button class="mdx-empty-media mdx-inline-control" type="button" data-action="pick-carousel" data-index="${index}">Add image</button>`
-                  }
-                  <input class="mdx-inline-control" data-image-field="src" data-index="${index}" value="${escapeHtml(image.src)}" placeholder="/images/..." />
-                  <input class="mdx-inline-control" data-image-field="alt" data-index="${index}" value="${escapeHtml(image.alt)}" placeholder="Alt text" />
-                  <div class="mdx-mini-actions">
-                    <button class="mdx-inline-control" type="button" data-action="pick-carousel" data-index="${index}">Pick</button>
-                    <label class="mdx-upload-button mdx-inline-control">
-                      Upload
-                      <input type="file" accept="image/*" data-upload="carousel" data-index="${index}" />
-                    </label>
-                    <button class="mdx-inline-control mdx-danger" type="button" data-action="remove-image" data-index="${index}">Remove</button>
-                  </div>
-                </article>
-              `,
-            )
-            .join("")
-        : `<div class="mdx-empty-stack">
-            <button class="mdx-empty-media mdx-inline-control" type="button" data-action="add-image">Add first image</button>
-            <label class="mdx-upload-button mdx-inline-control">
-              Upload first image
-              <input type="file" accept="image/*" data-upload="carousel-new" />
-            </label>
-          </div>`;
+    if (activeCarouselIndex >= images.length) activeCarouselIndex = Math.max(0, images.length - 1);
+    const active = images[activeCarouselIndex];
+    const hasImages = images.length > 0;
     return shell(`
-      <div class="mdx-carousel-strip">${tiles}</div>
-      <div class="mdx-fields mdx-fields--carousel">
+      <div class="mdx-carousel-viewer">
+        <button class="mdx-inline-control mdx-carousel-nav" type="button" data-action="prev-image" ${images.length < 2 ? "disabled" : ""} aria-label="Previous image">&lt;</button>
+        <button class="mdx-media-stage mdx-carousel-stage mdx-inline-control" type="button" data-action="pick-carousel-active">
+          ${
+            active?.src
+              ? `<img src="${escapeHtml(active.src)}" alt="${escapeHtml(active.alt)}" />`
+              : `<span>Pick/Upload image</span>`
+          }
+        </button>
+        <button class="mdx-inline-control mdx-carousel-nav" type="button" data-action="next-image" ${images.length < 2 ? "disabled" : ""} aria-label="Next image">&gt;</button>
+      </div>
+      <div class="mdx-carousel-controls">
+        <span>${hasImages ? `${activeCarouselIndex + 1} / ${images.length}` : "0 / 0"}</span>
         <button class="mdx-inline-control" type="button" data-action="add-image">Add image</button>
-        <label class="mdx-upload-button mdx-inline-control">
-          Upload image
-          <input type="file" accept="image/*" data-upload="carousel-new" />
-        </label>
+        <button class="mdx-inline-control" type="button" data-action="open-sort" ${images.length < 2 ? "disabled" : ""}>Sort</button>
+        <button class="mdx-inline-control mdx-danger" type="button" data-action="remove-active" ${!hasImages ? "disabled" : ""}>Remove image</button>
+      </div>
+      <div class="mdx-fields mdx-fields--carousel">
+        <label><span>Alt</span><input class="mdx-inline-control" data-image-field="alt" data-index="${activeCarouselIndex}" value="${escapeHtml(active?.alt)}" ${!hasImages ? "disabled" : ""} /></label>
         <label><span>Caption</span><textarea class="mdx-inline-control" data-field="caption" rows="2">${escapeHtml(attrs.caption)}</textarea></label>
         <label><span>Aspect ratio</span><input class="mdx-inline-control" data-field="aspectRatio" value="${escapeHtml(attrs.aspectRatio)}" /></label>
         <label><span>Object fit</span>
@@ -356,6 +406,7 @@ function componentNodeView(
         </label>
         <label><span>Max width</span><input class="mdx-inline-control" data-field="maxWidth" value="${escapeHtml(attrs.maxWidth)}" /></label>
       </div>
+      ${renderSortModal()}
     `);
   }
 
@@ -363,82 +414,148 @@ function componentNodeView(
     return shell(`
       <div class="mdx-preview-card">
         <input class="mdx-inline-control mdx-card-title" data-field="title" value="${escapeHtml(attrs.title)}" placeholder="Card title" />
-        <textarea class="mdx-inline-control" data-field="caption" rows="3" placeholder="Card body">${escapeHtml(attrs.caption)}</textarea>
+        <textarea class="mdx-inline-control mdx-card-body" data-field="caption" rows="3" placeholder="Card body">${escapeHtml(attrs.caption)}</textarea>
       </div>
     `);
   }
 
   function renderBadge(attrs: Record<string, unknown>) {
-    return shell(`
-      <div class="mdx-badge-row">
-        <span class="mdx-preview-badge">${escapeHtml(attrs.title || "Badge")}</span>
-        <input class="mdx-inline-control" data-field="title" value="${escapeHtml(attrs.title)}" placeholder="Badge text" />
-      </div>
-    `);
+    const title = String(attrs.title ?? "");
+    return shell(
+      `<input class="mdx-inline-control mdx-preview-badge" data-field="title" value="${escapeHtml(title)}" placeholder="Badge" style="width: ${badgeWidth(title)}ch;" />`,
+      true,
+    );
   }
 
-  function renderButton(attrs: Record<string, unknown>) {
-    const variant = String(attrs.variant ?? "primary");
-    return shell(`
-      <div class="mdx-button-preview mdx-button-preview--${escapeHtml(variant)}">${escapeHtml(attrs.label || "Button")}</div>
-      <div class="mdx-fields mdx-fields--button">
-        <label><span>Label</span><input class="mdx-inline-control" data-field="label" value="${escapeHtml(attrs.label)}" /></label>
-        <label><span>Href</span><input class="mdx-inline-control" data-field="href" value="${escapeHtml(attrs.href)}" /></label>
+  function renderButtonFields(index: number | null, attrs: Record<string, unknown>) {
+    const prefix = index === null ? "" : `data-row-index="${index}"`;
+    const field = index === null ? "data-field" : "data-row-field";
+    const typeValue = index === null ? attrs.type : attrs.buttonType;
+    return `
+      <div class="mdx-button-popover">
+        <label><span>Label</span><input class="mdx-inline-control" ${field}="label" ${prefix} value="${escapeHtml(attrs.label)}" /></label>
+        <label><span>Href</span><input class="mdx-inline-control" ${field}="href" ${prefix} value="${escapeHtml(attrs.href)}" /></label>
         <label><span>Variant</span>
-          <select class="mdx-inline-control" data-field="variant">
+          <select class="mdx-inline-control" ${field}="variant" ${prefix}>
             ${["primary", "secondary", "danger", "warning"]
-              .map((value) => `<option value="${value}" ${variant === value ? "selected" : ""}>${value}</option>`)
+              .map((value) => `<option value="${value}" ${buttonVariant(attrs.variant) === value ? "selected" : ""}>${value}</option>`)
               .join("")}
           </select>
         </label>
         <label><span>Target</span>
-          <select class="mdx-inline-control" data-field="target">
+          <select class="mdx-inline-control" ${field}="target" ${prefix}>
             <option value="" ${!attrs.target ? "selected" : ""}>same tab</option>
             <option value="_blank" ${attrs.target === "_blank" ? "selected" : ""}>new tab</option>
           </select>
         </label>
+        <label><span>Type</span>
+          <select class="mdx-inline-control" ${field}="${index === null ? "type" : "buttonType"}" ${prefix}>
+            ${["button", "submit", "reset"]
+              .map((value) => `<option value="${value}" ${String(typeValue ?? "button") === value ? "selected" : ""}>${value}</option>`)
+              .join("")}
+          </select>
+        </label>
+      </div>
+    `;
+  }
+
+  function renderButton(attrs: Record<string, unknown>) {
+    const variant = buttonVariant(attrs.variant);
+    return shell(
+      `
+        <div class="mdx-button-inline-wrap">
+          <button class="mdx-inline-control mdx-button-preview mdx-button-preview--${escapeHtml(variant)}" type="button" data-action="toggle-button-popover">
+            ${escapeHtml(attrs.label || "Button")}
+          </button>
+          ${standaloneButtonPopover ? renderButtonFields(null, attrs) : ""}
+        </div>
+      `,
+      true,
+    );
+  }
+
+  function renderTable(attrs: Record<string, unknown>) {
+    const headers = effectiveHeaders(attrs.headers);
+    const rows = effectiveRows(attrs.data, headers);
+    return shell(`
+      <div class="mdx-table-preview">
+        <table class="mdx-preview-table">
+          <thead>
+            <tr>
+              ${headers
+                .map(
+                  (header, index) => `
+                    <th>
+                      <input class="mdx-inline-control" data-header-index="${index}" value="${escapeHtml(header)}" />
+                      <button class="mdx-inline-control mdx-icon-danger" type="button" data-action="remove-column" data-index="${index}" ${headers.length < 2 ? "disabled" : ""} aria-label="Remove column">X</button>
+                    </th>
+                  `,
+                )
+                .join("")}
+              <th class="mdx-table-row-action">Rows</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows
+              .map(
+                (row, rowIndex) => `
+                  <tr>
+                    ${headers
+                      .map(
+                        (header, colIndex) =>
+                          `<td><input class="mdx-inline-control" data-table-row="${rowIndex}" data-table-col="${colIndex}" value="${escapeHtml(row[header])}" /></td>`,
+                      )
+                      .join("")}
+                    <td><button class="mdx-inline-control mdx-danger" type="button" data-action="remove-row" data-index="${rowIndex}" ${rows.length < 2 ? "disabled" : ""}>Remove</button></td>
+                  </tr>
+                `,
+              )
+              .join("")}
+          </tbody>
+        </table>
+        <div class="mdx-table-actions">
+          <button class="mdx-inline-control" type="button" data-action="add-column">Add column</button>
+          <button class="mdx-inline-control" type="button" data-action="add-row">Add row</button>
+        </div>
+        <label class="mdx-table-caption"><span>Caption</span><input class="mdx-inline-control" data-field="caption" value="${escapeHtml(attrs.caption)}" /></label>
       </div>
     `);
   }
 
-  function renderTable(attrs: Record<string, unknown>) {
-    const headers = headersList(attrs.headers);
-    const rows = rowList(attrs.data);
-    const table = headers.length
-      ? `
-        <table class="mdx-preview-table">
-          <thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead>
-          <tbody>
-            ${
-              rows.length
-                ? rows
-                    .map(
-                      (row, rowIndex) => `
-                        <tr>
-                          ${headers
-                            .map(
-                              (header) =>
-                                `<td><input class="mdx-inline-control" data-table-cell="${escapeHtml(header)}" data-row="${rowIndex}" value="${escapeHtml(row[header])}" /></td>`,
-                            )
-                            .join("")}
-                          <td><button class="mdx-inline-control mdx-danger" type="button" data-action="remove-row" data-index="${rowIndex}">Remove</button></td>
-                        </tr>
-                      `,
-                    )
-                    .join("")
-                : `<tr><td colspan="${headers.length + 1}">No rows yet.</td></tr>`
-            }
-          </tbody>
-        </table>
-      `
-      : `<p class="mdx-empty-copy">Add comma-separated headers to start the table.</p>`;
+  function renderComponentRow(attrs: Record<string, unknown>) {
+    const items = rowItems(attrs.items);
+    const rendered = items
+      .map((item, index) => {
+        if (item.type === "Badge") {
+          return `
+            <span class="mdx-row-item mdx-row-badge">
+              <input class="mdx-inline-control mdx-preview-badge" data-row-index="${index}" data-row-field="title" value="${escapeHtml(item.title)}" placeholder="Badge" style="width: ${badgeWidth(item.title)}ch;" />
+              <button class="mdx-inline-control mdx-icon-danger" type="button" data-action="remove-row-item" data-index="${index}" aria-label="Remove badge">X</button>
+            </span>
+          `;
+        }
+        return `
+          <span class="mdx-row-item mdx-row-button">
+            <button class="mdx-inline-control mdx-button-preview mdx-button-preview--${escapeHtml(item.variant)}" type="button" data-action="toggle-row-button-popover" data-index="${index}">
+              ${escapeHtml(item.label || "Button")}
+            </button>
+            <button class="mdx-inline-control mdx-icon-button" type="button" data-action="toggle-row-button-popover" data-index="${index}" aria-label="Edit button">Edit</button>
+            <button class="mdx-inline-control mdx-icon-danger" type="button" data-action="remove-row-item" data-index="${index}" aria-label="Remove button">X</button>
+            ${openButtonPopoverIndex === index ? renderButtonFields(index, item) : ""}
+          </span>
+        `;
+      })
+      .join("");
     return shell(`
-      <div class="mdx-fields">
-        <label><span>Headers</span><input class="mdx-inline-control" data-action-field="headers" value="${escapeHtml(headers.join(", "))}" placeholder="Name, Value, Link" /></label>
-        <label><span>Caption</span><input class="mdx-inline-control" data-field="caption" value="${escapeHtml(attrs.caption)}" /></label>
+      <div class="mdx-component-row">
+        <div class="mdx-component-row-items">
+          ${rendered || `<p class="mdx-empty-copy">Add a badge or button.</p>`}
+        </div>
+        <div class="mdx-component-row-actions">
+          <button class="mdx-inline-control" type="button" data-action="add-row-badge">Add badge</button>
+          <button class="mdx-inline-control" type="button" data-action="add-row-button">Add button</button>
+        </div>
       </div>
-      ${table}
-      <button class="mdx-inline-control" type="button" data-action="add-row">Add row</button>
     `);
   }
 
@@ -446,7 +563,7 @@ function componentNodeView(
     return `
       <div class="mdx-block-head">
         <span class="mdx-block-label">Raw MDX</span>
-        <button class="mdx-inline-control mdx-danger" type="button" data-action="delete">Delete</button>
+        <button class="mdx-inline-control mdx-icon-danger" type="button" data-action="delete" aria-label="Delete Raw MDX">X</button>
       </div>
       <textarea class="mdx-inline-control mdx-raw-source" data-field="source" rows="5">${escapeHtml(attrs.source)}</textarea>
     `;
@@ -460,15 +577,17 @@ function componentNodeView(
     else if (spec.name === "Badge") dom.innerHTML = renderBadge(attrs);
     else if (spec.name === "Button") dom.innerHTML = renderButton(attrs);
     else if (spec.name === "Table") dom.innerHTML = renderTable(attrs);
+    else if (spec.name === "ComponentRow") dom.innerHTML = renderComponentRow(attrs);
     else dom.innerHTML = renderRaw(attrs);
   }
 
   dom.onclick = (event) => {
     const target = event.target as HTMLElement | null;
-    const button = target?.closest<HTMLButtonElement>("button[data-action]");
-    if (!button) return;
+    const actionTarget = target?.closest<HTMLElement>("[data-action]");
+    if (!actionTarget) return;
     event.preventDefault();
-    const action = button.dataset.action;
+    const action = actionTarget.dataset.action;
+
     if (action === "delete") {
       deleteNode();
       return;
@@ -477,75 +596,140 @@ function componentNodeView(
       openFigurePicker();
       return;
     }
+    if (action === "pick-carousel-active") {
+      const images = imageList(currentNode.attrs.images);
+      if (images.length === 0) {
+        activeCarouselIndex = 0;
+        setAttrs({ images: [{ src: "", alt: "" }] }, true);
+      }
+      openCarouselPicker(activeCarouselIndex);
+      return;
+    }
     if (action === "add-image") {
       const images = imageList(currentNode.attrs.images);
-      const next = [...images, { src: "", alt: "" }];
-      setAttrs({ images: next }, true);
-      openCarouselPicker(next.length - 1);
+      activeCarouselIndex = images.length;
+      setAttrs({ images: [...images, { src: "", alt: "" }] }, true);
+      openCarouselPicker(activeCarouselIndex);
       return;
     }
-    if (action === "pick-carousel") {
-      const index = Number(button.dataset.index ?? 0);
-      openCarouselPicker(index);
-      return;
-    }
-    if (action === "remove-image") {
-      const index = Number(button.dataset.index ?? 0);
+    if (action === "remove-active") {
       const images = imageList(currentNode.attrs.images);
-      images.splice(index, 1);
+      if (images.length === 0) return;
+      images.splice(activeCarouselIndex, 1);
+      activeCarouselIndex = Math.max(0, Math.min(activeCarouselIndex, images.length - 1));
       setAttrs({ images }, true);
       return;
     }
-    if (action === "move-image") {
-      const index = Number(button.dataset.index ?? 0);
-      const direction = Number(button.dataset.direction ?? 0);
+    if (action === "prev-image" || action === "next-image") {
       const images = imageList(currentNode.attrs.images);
-      const targetIndex = index + direction;
-      if (targetIndex < 0 || targetIndex >= images.length) return;
-      [images[index], images[targetIndex]] = [images[targetIndex], images[index]];
-      setAttrs({ images }, true);
+      if (images.length < 2) return;
+      activeCarouselIndex =
+        action === "prev-image"
+          ? (activeCarouselIndex - 1 + images.length) % images.length
+          : (activeCarouselIndex + 1) % images.length;
+      render();
+      return;
+    }
+    if (action === "open-sort") {
+      sortDraft = imageList(currentNode.attrs.images);
+      sortOpen = true;
+      render();
+      return;
+    }
+    if (action === "cancel-sort") {
+      sortOpen = false;
+      sortDraft = [];
+      draggingSortIndex = null;
+      render();
+      return;
+    }
+    if (action === "save-sort") {
+      sortOpen = false;
+      draggingSortIndex = null;
+      activeCarouselIndex = Math.min(activeCarouselIndex, Math.max(0, sortDraft.length - 1));
+      setAttrs({ images: sortDraft }, true);
+      sortDraft = [];
+      return;
+    }
+    if (action === "toggle-button-popover") {
+      standaloneButtonPopover = !standaloneButtonPopover;
+      render();
+      return;
+    }
+    if (action === "add-column") {
+      const headers = effectiveHeaders(currentNode.attrs.headers);
+      const rows = effectiveRows(currentNode.attrs.data, headers);
+      const nextHeader = uniqueHeader(headers);
+      setAttrs({
+        headers: [...headers, nextHeader],
+        data: rows.map((row) => ({ ...row, [nextHeader]: "" })),
+      }, true);
+      return;
+    }
+    if (action === "remove-column") {
+      const index = Number(actionTarget.dataset.index ?? 0);
+      const headers = effectiveHeaders(currentNode.attrs.headers);
+      if (headers.length < 2) return;
+      const removed = headers[index];
+      const nextHeaders = headers.filter((_, itemIndex) => itemIndex !== index);
+      const rows = effectiveRows(currentNode.attrs.data, headers).map((row) => {
+        const next = { ...row };
+        delete next[removed];
+        return next;
+      });
+      setAttrs({ headers: nextHeaders, data: rows }, true);
       return;
     }
     if (action === "add-row") {
-      const headers = headersList(currentNode.attrs.headers);
+      const headers = effectiveHeaders(currentNode.attrs.headers);
       const row = Object.fromEntries(headers.map((header) => [header, ""]));
-      setAttrs({ data: [...rowList(currentNode.attrs.data), row] }, true);
+      setAttrs({ headers, data: [...effectiveRows(currentNode.attrs.data, headers), row] }, true);
       return;
     }
     if (action === "remove-row") {
-      const rows = rowList(currentNode.attrs.data);
-      rows.splice(Number(button.dataset.index ?? 0), 1);
-      setAttrs({ data: rows }, true);
+      const headers = effectiveHeaders(currentNode.attrs.headers);
+      const rows = effectiveRows(currentNode.attrs.data, headers);
+      rows.splice(Number(actionTarget.dataset.index ?? 0), 1);
+      setAttrs({ headers, data: rows.length ? rows : [Object.fromEntries(headers.map((header) => [header, ""]))] }, true);
+      return;
     }
-  };
-
-  dom.onchange = (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLInputElement) || target.type !== "file") return;
-    const uploadKind = target.dataset.upload;
-    const file = target.files?.[0];
-    if (!uploadKind || !file) return;
-    const index = Number(target.dataset.index ?? 0);
-    void uploadImage(file, (path) => {
-      if (uploadKind === "figure") {
-        setAttrs({ src: path }, true);
-        return;
-      }
-      if (uploadKind === "carousel") {
-        updateCarouselImage(index, { src: path });
-        return;
-      }
-      if (uploadKind === "carousel-new") {
-        appendCarouselImage({ src: path, alt: "" });
-      }
-    }).finally(() => {
-      target.value = "";
-    });
+    if (action === "add-row-badge" || action === "add-row-button") {
+      const items = rowItems(currentNode.attrs.items);
+      items.push(defaultRowItem(action === "add-row-badge" ? "Badge" : "Button"));
+      setAttrs({ items }, true);
+      return;
+    }
+    if (action === "remove-row-item") {
+      const items = rowItems(currentNode.attrs.items);
+      items.splice(Number(actionTarget.dataset.index ?? 0), 1);
+      openButtonPopoverIndex = null;
+      setAttrs({ items }, true);
+      return;
+    }
+    if (action === "toggle-row-button-popover") {
+      const index = Number(actionTarget.dataset.index ?? 0);
+      openButtonPopoverIndex = openButtonPopoverIndex === index ? null : index;
+      render();
+    }
   };
 
   dom.oninput = (event) => {
     const target = event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
     if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement)) return;
+
+    const rowField = target.dataset.rowField;
+    if (rowField) {
+      const index = Number(target.dataset.rowIndex ?? 0);
+      const items = rowItems(currentNode.attrs.items);
+      const item = items[index];
+      if (!item) return;
+      items[index] = { ...item, [rowField]: rowField === "target" ? cleanOptional(target.value) : target.value } as RowItem;
+      if (target.classList.contains("mdx-preview-badge")) {
+        target.style.width = `${badgeWidth(target.value)}ch`;
+      }
+      setAttrs({ items });
+      return;
+    }
 
     const field = target.dataset.field;
     if (field) {
@@ -557,6 +741,9 @@ function componentNodeView(
         field === "caption"
           ? cleanOptional(target.value)
           : target.value;
+      if (target.classList.contains("mdx-preview-badge")) {
+        target.style.width = `${badgeWidth(target.value)}ch`;
+      }
       setAttrs({ [field]: value });
       return;
     }
@@ -570,62 +757,69 @@ function componentNodeView(
       return;
     }
 
-    const headersField = target.dataset.actionField;
-    if (headersField === "headers") {
-      const headers = target.value
-        .split(",")
-        .map((header) => header.trim())
-        .filter(Boolean);
-      setAttrs({ headers });
+    const headerIndex = target.dataset.headerIndex;
+    if (headerIndex !== undefined) {
+      const index = Number(headerIndex);
+      const headers = effectiveHeaders(currentNode.attrs.headers);
+      const oldHeader = headers[index];
+      const nextHeader = target.value || oldHeader;
+      headers[index] = nextHeader;
+      const rows = effectiveRows(currentNode.attrs.data, headers).map((row) => {
+        if (oldHeader === nextHeader) return row;
+        const next = { ...row, [nextHeader]: row[oldHeader] ?? "" };
+        delete next[oldHeader];
+        return next;
+      });
+      setAttrs({ headers, data: rows });
       return;
     }
 
-    const tableCell = target.dataset.tableCell;
-    if (tableCell) {
-      const rows = rowList(currentNode.attrs.data);
-      const rowIndex = Number(target.dataset.row ?? 0);
-      rows[rowIndex] = { ...(rows[rowIndex] ?? {}), [tableCell]: target.value };
-      setAttrs({ data: rows });
+    const tableRow = target.dataset.tableRow;
+    const tableCol = target.dataset.tableCol;
+    if (tableRow !== undefined && tableCol !== undefined) {
+      const headers = effectiveHeaders(currentNode.attrs.headers);
+      const rows = effectiveRows(currentNode.attrs.data, headers);
+      const rowIndex = Number(tableRow);
+      const header = headers[Number(tableCol)];
+      rows[rowIndex] = { ...(rows[rowIndex] ?? {}), [header]: target.value };
+      setAttrs({ headers, data: rows });
     }
   };
 
   dom.ondragstart = (event) => {
-    if (spec.name !== "ImageCarousel") return;
+    if (!sortOpen) return;
     const target = event.target instanceof HTMLElement ? event.target : null;
-    const handle = target?.closest<HTMLElement>("[data-drag-handle]");
-    if (!handle) {
-      if (target?.closest(".mdx-carousel-item")) event.preventDefault();
-      return;
-    }
-    draggingCarouselIndex = Number(handle.dataset.index ?? 0);
-    event.dataTransfer?.setData("text/plain", String(draggingCarouselIndex));
+    const item = target?.closest<HTMLElement>(".mdx-sort-item");
+    if (!item) return;
+    draggingSortIndex = Number(item.dataset.sortIndex ?? 0);
+    event.dataTransfer?.setData("text/plain", String(draggingSortIndex));
     if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
-    handle.closest(".mdx-carousel-item")?.classList.add("is-dragging");
   };
 
   dom.ondragover = (event) => {
-    if (spec.name !== "ImageCarousel" || draggingCarouselIndex === null) return;
+    if (!sortOpen || draggingSortIndex === null) return;
     const target = event.target instanceof HTMLElement ? event.target : null;
-    const item = target?.closest<HTMLElement>(".mdx-carousel-item");
+    const item = target?.closest<HTMLElement>(".mdx-sort-item");
     if (!item) return;
     event.preventDefault();
-    if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
-    const targetIndex = Number(item.dataset.carouselIndex ?? -1);
-    if (Number.isInteger(targetIndex) && targetIndex !== draggingCarouselIndex) {
-      reorderCarouselImages(draggingCarouselIndex, targetIndex);
-    }
+    const targetIndex = Number(item.dataset.sortIndex ?? -1);
+    if (targetIndex < 0 || targetIndex === draggingSortIndex) return;
+    const [moving] = sortDraft.splice(draggingSortIndex, 1);
+    sortDraft.splice(targetIndex, 0, moving);
+    draggingSortIndex = targetIndex;
+    render();
   };
 
   dom.ondrop = (event) => {
-    if (spec.name !== "ImageCarousel") return;
+    if (!sortOpen) return;
     event.preventDefault();
-    draggingCarouselIndex = null;
+    draggingSortIndex = null;
     render();
   };
 
   dom.ondragend = () => {
-    if (spec.name !== "ImageCarousel") return;
-    draggingCarouselIndex = null;
+    if (!sortOpen) return;
+    draggingSortIndex = null;
     render();
   };
 
@@ -640,7 +834,10 @@ function componentNodeView(
       return true;
     },
     stopEvent(event: Event) {
-      return event.target instanceof HTMLElement && Boolean(event.target.closest(".mdx-inline-control"));
+      return (
+        event.target instanceof HTMLElement &&
+        Boolean(event.target.closest(".mdx-inline-control, .mdx-sort-modal"))
+      );
     },
     ignoreMutation() {
       return true;
@@ -682,6 +879,7 @@ export const RawMdxBlock = Node.create({
 export function createCustomComponentExtensions(options: ComponentExtensionOptions = {}) {
   return [
     ...COMPONENT_SPECS.map((spec) => buildNode(spec, options)),
+    buildNode(COMPONENT_ROW_SPEC, options),
     RawMdxBlock,
   ];
 }

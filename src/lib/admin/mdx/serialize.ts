@@ -182,6 +182,8 @@ function serializeBlock(node: TiptapNode, ctx: SerializeContext): string {
       return serializeCustomComponent("Button", node, ctx);
     case "mdxTable":
       return serializeCustomComponent("Table", node, ctx);
+    case "mdxComponentRow":
+      return serializeCustomComponent("ComponentRow", node, ctx);
     default:
       return "";
   }

@@ -57,7 +57,6 @@
   const paper = "#f4f9e1";
   const rootStats = $derived({
     images: items.filter((item) => item.root === "images").length,
-    assets: items.filter((item) => item.root === "assets").length,
   });
   const breadcrumbs = $derived(
     currentRoot
@@ -559,20 +558,6 @@
           {#if !currentRoot && !query.trim()}
             <button
               type="button"
-              class:selected={selectedNode?.type === "root" && selectedNode.root === "assets"}
-              class="folder-card root-card"
-              oncontextmenu={(event) => showContext(event, { type: "root", root: "assets" })}
-              onclick={() => selectNode({ type: "root", root: "assets" })}
-              ondblclick={() => openRoot("assets")}
-              onkeydown={(event) => event.key === "Enter" && openRoot("assets")}
-            >
-              <FolderOpen size={30} />
-              <span>assets</span>
-              <small>{rootStats.assets} files</small>
-              <MoreVertical size={16} />
-            </button>
-            <button
-              type="button"
               class:selected={selectedNode?.type === "root" && selectedNode.root === "images"}
               class="folder-card root-card"
               oncontextmenu={(event) => showContext(event, { type: "root", root: "images" })}
@@ -724,7 +709,6 @@
             <span>Root</span>
             <select bind:value={uploadRoot}>
               <option value="images">/images</option>
-              <option value="assets">/assets</option>
             </select>
           </label>
           <label>
@@ -770,7 +754,6 @@
             <span>Root</span>
             <select bind:value={newFolderRoot}>
               <option value="images">/images</option>
-              <option value="assets">/assets</option>
             </select>
           </label>
           <label>
@@ -827,7 +810,6 @@
             <span>Root</span>
             <select bind:value={moveRoot}>
               <option value="images">/images</option>
-              <option value="assets">/assets</option>
             </select>
           </label>
           <label>

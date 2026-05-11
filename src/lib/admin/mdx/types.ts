@@ -4,7 +4,8 @@ export type CustomComponentName =
   | "Card"
   | "Badge"
   | "Button"
-  | "Table";
+  | "Table"
+  | "ComponentRow";
 
 export const CUSTOM_COMPONENTS: Record<CustomComponentName, string> = {
   ImageCarousel: "/src/components/ImageCarousel.astro",
@@ -13,6 +14,7 @@ export const CUSTOM_COMPONENTS: Record<CustomComponentName, string> = {
   Badge: "/src/components/Badge.astro",
   Button: "/src/components/Button.astro",
   Table: "/src/components/Table.astro",
+  ComponentRow: "/src/components/ComponentRow.astro",
 };
 
 export function isCustomComponent(name: string): name is CustomComponentName {

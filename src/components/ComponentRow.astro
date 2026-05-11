@@ -1,0 +1,51 @@
+---
+import Badge from "./Badge.astro";
+import Button from "./Button.astro";
+
+type RowItem =
+  | { type: "Badge"; title: string }
+  | {
+      type: "Button";
+      label: string;
+      href?: string;
+      variant?: "primary" | "secondary" | "danger" | "warning";
+      target?: string | null;
+      buttonType?: "button" | "submit" | "reset";
+    };
+
+interface Props {
+  items: RowItem[];
+}
+
+const { items = [] } = Astro.props;
+---
+
+{
+  items.length > 0 && (
+    <div class="component-row">
+      {items.map((item) =>
+        item.type === "Badge" ? (
+          <Badge title={item.title} />
+        ) : (
+          <Button
+            label={item.label}
+            href={item.href}
+            variant={item.variant}
+            target={item.target ?? undefined}
+            type={item.buttonType}
+          />
+        ),
+      )}
+    </div>
+  )
+}
+
+<style lang="scss">
+  .component-row {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 1rem 0;
+  }
+</style>

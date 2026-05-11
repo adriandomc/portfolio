@@ -8,12 +8,13 @@
     Search,
     X,
   } from "@lucide/svelte";
-  import type { MediaFolder, MediaItem, MediaRoot } from "../../lib/admin/media";
+  import type { MediaFolder, MediaItem, MediaKind, MediaRoot } from "../../lib/admin/media";
 
   interface Props {
     title?: string;
     defaultRoot?: MediaRoot;
     defaultFolder?: string;
+    kind?: MediaKind;
     onSelect: (path: string) => void;
     onClose: () => void;
   }
@@ -22,6 +23,7 @@
     title = "Choose image",
     defaultRoot = "images",
     defaultFolder = "",
+    kind = "image",
     onSelect,
     onClose,
   }: Props = $props();
@@ -44,6 +46,8 @@
   let uploadFolder = $state(initialPickerFolder());
   let uploadFilename = $state("");
   let uploadFile = $state<File | null>(null);
+  let newFolderName = $state("");
+  let creatingFolder = $state(false);
   let loading = $state(true);
   let saving = $state(false);
   let error = $state<string | null>(null);
@@ -100,13 +104,14 @@
     if (needle) {
       return items
         .filter((item) =>
+          item.kind === kind &&
           `${item.path} ${item.folder} ${item.name}`.toLowerCase().includes(needle),
         )
         .sort((a, b) => a.path.localeCompare(b.path));
     }
     if (!currentRoot) return [];
     return items
-      .filter((item) => item.root === currentRoot && item.folder === currentFolder)
+      .filter((item) => item.kind === kind && item.root === currentRoot && item.folder === currentFolder)
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
@@ -136,6 +141,37 @@
     currentFolder = folder;
     selected = null;
     syncUploadDestination();
+  }
+
+  function joinFolder(parent: string, name: string) {
+    return [parent, name].filter(Boolean).join("/");
+  }
+
+  async function createFolder() {
+    const name = newFolderName.trim();
+    if (!name) return;
+    creatingFolder = true;
+    error = null;
+    try {
+      const root = currentRoot ?? uploadRoot;
+      const folder = joinFolder(currentRoot ? currentFolder : uploadFolder, name);
+      const res = await fetch("/api/admin/media", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ kind: "folder", root, folder }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      newFolderName = "";
+      currentRoot = root;
+      currentFolder = folder;
+      syncUploadDestination();
+      await load();
+    } catch (err) {
+      error = err instanceof Error ? err.message : "Create folder failed.";
+    } finally {
+      creatingFolder = false;
+    }
   }
 
   async function upload() {
@@ -233,10 +269,6 @@
         {:else}
           <div class="drive-grid">
             {#if !currentRoot && !query.trim()}
-              <button type="button" class="folder-card" onclick={() => openRoot("assets")}>
-                <FolderOpen size={26} />
-                <span>assets</span>
-              </button>
               <button type="button" class="folder-card" onclick={() => openRoot("images")}>
                 <FolderOpen size={26} />
                 <span>images</span>
@@ -287,14 +319,19 @@
         {/if}
 
         <section class="upload-card">
-          <p class="eyebrow">Upload here</p>
+          <p class="eyebrow">New folder</p>
           <label>
-            <span>Root</span>
-            <select bind:value={uploadRoot}>
-              <option value="images">/images</option>
-              <option value="assets">/assets</option>
-            </select>
+            <span>Name</span>
+            <input bind:value={newFolderName} placeholder="project-gallery" />
           </label>
+          <button type="button" class="primary" onclick={createFolder} disabled={!newFolderName.trim() || creatingFolder}>
+            {#if creatingFolder}<span class="spin"><Loader2 size={15} /></span>{/if}
+            Create folder
+          </button>
+        </section>
+
+        <section class="upload-card">
+          <p class="eyebrow">Upload here</p>
           <label>
             <span>Folder</span>
             <input bind:value={uploadFolder} placeholder="projects/voltalfa" />

@@ -21,6 +21,7 @@
   import {
     COMPONENT_SPECS,
     createCustomComponentExtensions,
+    defaultRowItem,
     type MdxMediaPickerRequest,
   } from "../../lib/admin/editor/extensions";
   import type {
@@ -135,8 +136,6 @@
             openMediaPicker: (target) => {
               pickerTarget = target;
             },
-            uploadRoot: "images",
-            uploadFolder: () => defaultMediaFolder,
             onMediaError: (message) => {
               saveError = message;
               saveStatus = "error";
@@ -241,6 +240,31 @@
   function insertCustomBlock(specName: string) {
     const spec = COMPONENT_SPECS.find((item) => item.name === specName);
     if (!editor || !spec) return;
+    if (specName === "Badge" || specName === "Button") {
+      const selection = editor.state.selection as {
+        from: number;
+        node?: { type: { name: string }; attrs: Record<string, unknown> };
+      };
+      if (selection.node?.type.name === "mdxComponentRow") {
+        updateBlockAttrsAt(selection.from, (attrs) => ({
+          ...attrs,
+          items: [
+            ...(Array.isArray(attrs.items) ? attrs.items : []),
+            defaultRowItem(specName),
+          ],
+        }));
+        return;
+      }
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: "mdxComponentRow",
+          attrs: { items: [defaultRowItem(specName)] },
+        })
+        .run();
+      return;
+    }
     editor
       .chain()
       .focus()
@@ -588,6 +612,7 @@
       title="Select image"
       defaultRoot="images"
       defaultFolder={defaultMediaFolder}
+      kind="image"
       onSelect={chooseMedia}
       onClose={() => (pickerTarget = null)}
     />
@@ -914,6 +939,7 @@
     border-radius: 5px;
     margin: 1rem 0;
     padding: 0.8rem;
+    position: relative;
   }
 
   .editor-area :global(.mdx-block-head) {
@@ -935,8 +961,13 @@
     text-transform: uppercase;
   }
 
+  .editor-area :global(.mdx-compact-actions) {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 0.35rem;
+  }
+
   .editor-area :global(.mdx-block button),
-  .editor-area :global(.mdx-upload-button),
   .editor-area :global(.mdx-block input),
   .editor-area :global(.mdx-block textarea),
   .editor-area :global(.mdx-block select) {
@@ -959,27 +990,6 @@
     }
   }
 
-  .editor-area :global(.mdx-upload-button) {
-    align-items: center;
-    background-color: rgba(244, 249, 225, 0.72);
-    color: $color-text;
-    cursor: pointer;
-    display: inline-flex !important;
-    font-weight: 800;
-    justify-content: center;
-    padding: 0.45rem 0.6rem;
-    text-transform: none;
-
-    &:hover {
-      background-color: $color-accent-1;
-      color: $color-white;
-    }
-  }
-
-  .editor-area :global(.mdx-upload-button input) {
-    display: none;
-  }
-
   .editor-area :global(.mdx-block .mdx-danger) {
     color: $color-error;
 
@@ -988,6 +998,26 @@
       border-color: $color-error;
       color: $color-white;
     }
+  }
+
+  .editor-area :global(.mdx-icon-danger),
+  .editor-area :global(.mdx-icon-button) {
+    align-items: center;
+    display: inline-flex;
+    justify-content: center;
+    min-height: 2rem;
+    min-width: 2rem;
+    padding: 0.25rem;
+    width: auto;
+  }
+
+  .editor-area :global(.mdx-block .mdx-icon-danger) {
+    color: $color-error;
+  }
+
+  .editor-area :global(.mdx-primary) {
+    background-color: $color-accent-1;
+    color: $color-white;
   }
 
   .editor-area :global(.mdx-block input),
@@ -1006,16 +1036,10 @@
     margin-top: 0.65rem;
   }
 
-  .editor-area :global(.mdx-fields--media) {
+  .editor-area :global(.mdx-fields--figure),
+  .editor-area :global(.mdx-fields--carousel) {
     @include respond-to("tablet") {
-      grid-template-columns: minmax(0, 1fr) auto minmax(8rem, 0.8fr);
-    }
-  }
-
-  .editor-area :global(.mdx-fields--carousel),
-  .editor-area :global(.mdx-fields--button) {
-    @include respond-to("tablet") {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 
@@ -1032,135 +1056,196 @@
     text-transform: uppercase;
   }
 
-  .editor-area :global(.mdx-figure-preview),
-  .editor-area :global(.mdx-empty-media) {
+  .editor-area :global(.mdx-media-stage) {
+    align-items: center;
     background-color: var(--admin-paper);
     border: 1px solid rgba($color-accent-1, 0.65);
     border-radius: 5px;
-    min-height: 11rem;
-  }
-
-  .editor-area :global(.mdx-figure-preview) {
-    display: grid;
-    place-items: center;
+    color: $color-text;
+    display: flex;
+    font-size: $fs-lg;
+    font-weight: 800;
+    justify-content: center;
+    min-height: 18rem;
     overflow: hidden;
+    padding: 0;
+    width: 100%;
   }
 
-  .editor-area :global(.mdx-figure-preview img) {
+  .editor-area :global(.mdx-media-stage img) {
     border: 0;
     margin: 0;
-    max-height: 22rem;
+    max-height: 28rem;
     max-width: 100%;
     object-fit: contain;
   }
 
-  .editor-area :global(.mdx-empty-media) {
+  .editor-area :global(.mdx-carousel-viewer) {
     align-items: center;
-    color: $color-accent-1;
-    display: inline-flex;
-    justify-content: center;
-    width: 100%;
-  }
-
-  .editor-area :global(.mdx-carousel-strip) {
     display: grid;
     gap: 0.65rem;
-
-    @include respond-to("tablet") {
-      grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-    }
+    grid-template-columns: 3rem minmax(0, 1fr) 3rem;
   }
 
-  .editor-area :global(.mdx-empty-stack) {
-    display: grid;
-    gap: 0.5rem;
+  .editor-area :global(.mdx-carousel-stage) {
+    min-height: 20rem;
   }
 
-  .editor-area :global(.mdx-carousel-item) {
-    background-color: rgba(244, 249, 225, 0.58);
-    border: 1px solid rgba($color-accent-1, 0.55);
-    border-radius: 5px;
-    display: grid;
-    gap: 0.4rem;
-    padding: 0.5rem;
+  .editor-area :global(.mdx-carousel-nav) {
+    font-size: $fs-xl;
+    min-height: 100%;
   }
 
-  .editor-area :global(.mdx-carousel-item.is-dragging) {
-    opacity: 0.78;
-    outline: 3px solid $color-accent-2;
-    outline-offset: 1px;
-  }
-
-  .editor-area :global(.mdx-carousel-item-head) {
+  .editor-area :global(.mdx-carousel-controls),
+  .editor-area :global(.mdx-component-row-actions) {
     align-items: center;
     display: flex;
-    gap: 0.4rem;
-    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 0.65rem;
   }
 
-  .editor-area :global(.mdx-carousel-item-head span) {
+  .editor-area :global(.mdx-carousel-controls span) {
     color: $color-accent-1;
     font-size: $fs-xs;
     font-weight: 800;
   }
 
-  .editor-area :global(.mdx-drag-handle) {
-    cursor: grab;
-    width: fit-content;
-
-    &:active {
-      cursor: grabbing;
-    }
+  .editor-area :global(.mdx-sort-backdrop) {
+    align-items: center;
+    background-color: rgba($color-text, 0.55);
+    display: flex;
+    inset: 0;
+    justify-content: space-between;
+    padding: 1rem;
+    position: fixed;
+    z-index: 150;
   }
 
-  .editor-area :global(.mdx-carousel-item img) {
+  .editor-area :global(.mdx-sort-modal) {
+    background-color: $color-tertiary;
+    border: 1px solid $color-accent-1;
+    border-radius: 5px;
+    display: grid;
+    gap: 0.75rem;
+    margin: auto;
+    max-height: min(42rem, calc(100dvh - 2rem));
+    overflow: auto;
+    padding: 1rem;
+    width: min(46rem, calc(100vw - 2rem));
+  }
+
+  .editor-area :global(.mdx-sort-modal header),
+  .editor-area :global(.mdx-sort-modal footer) {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .editor-area :global(.mdx-sort-modal h3) {
+    margin: 0;
+  }
+
+  .editor-area :global(.mdx-sort-grid) {
+    display: grid;
+    gap: 0.65rem;
+    grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+  }
+
+  .editor-area :global(.mdx-sort-item) {
+    background-color: $color-primary;
+    border: 1px solid $color-accent-1;
+    border-radius: 5px;
+    cursor: grab;
+    display: grid;
+    gap: 0.35rem;
+    padding: 0.45rem;
+  }
+
+  .editor-area :global(.mdx-sort-item.is-dragging) {
+    opacity: 0.72;
+    outline: 3px solid $color-accent-2;
+  }
+
+  .editor-area :global(.mdx-sort-item img),
+  .editor-area :global(.mdx-sort-empty) {
     aspect-ratio: 4 / 3;
     background-color: var(--admin-paper);
     border: 1px solid rgba($color-accent-1, 0.5);
-    margin: 0;
     object-fit: contain;
     width: 100%;
   }
 
-  .editor-area :global(.mdx-mini-actions),
-  .editor-area :global(.mdx-badge-row) {
+  .editor-area :global(.mdx-sort-empty) {
+    align-items: center;
+    color: $color-accent-1;
+    display: flex;
+    font-size: $fs-xs;
+    justify-content: center;
+  }
+
+  .editor-area :global(.mdx-component-row-items) {
+    align-items: center;
     display: flex;
     flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .editor-area :global(.mdx-row-item),
+  .editor-area :global(.mdx-button-inline-wrap) {
+    align-items: center;
+    display: inline-flex;
     gap: 0.35rem;
+    position: relative;
   }
 
   .editor-area :global(.mdx-preview-badge) {
-    align-self: center;
     background-color: $color-accent-1;
+    border-color: $color-accent-1;
     border-radius: 999px;
     color: $color-white;
-    display: inline-flex;
     font-size: $fs-sm;
     font-weight: 800;
-    padding: 0.35rem 0.75rem;
+    max-width: 100%;
+    min-width: 5ch;
+    padding: 0.4rem 0.75rem;
+    text-align: center;
+    width: auto;
   }
 
   .editor-area :global(.mdx-preview-card) {
-    background-color: var(--admin-paper);
-    border: 1px solid rgba($color-accent-1, 0.6);
+    background-color: $color-primary;
+    border: 1px solid $color-accent-1;
     border-radius: 5px;
     display: grid;
     gap: 0.55rem;
-    padding: 0.75rem;
+    padding: 1.25rem;
   }
 
   .editor-area :global(.mdx-card-title) {
+    background-color: transparent;
+    border-color: transparent;
     font-size: $fs-lg;
     font-weight: 800;
+    padding-inline: 0;
+  }
+
+  .editor-area :global(.mdx-card-body) {
+    background-color: transparent;
+    border-color: transparent;
+    line-height: 1.6;
+    padding-inline: 0;
   }
 
   .editor-area :global(.mdx-button-preview) {
+    align-items: center;
+    background-color: $color-primary;
     border: 2px solid $color-accent-1;
     border-radius: 999px;
     display: inline-flex;
     font-size: $fs-sm;
     font-weight: 800;
-    margin-bottom: 0.65rem;
     padding: 0.45rem 1rem;
     width: fit-content;
   }
@@ -1180,8 +1265,33 @@
     border-color: $color-warning;
   }
 
+  .editor-area :global(.mdx-button-popover) {
+    background-color: $color-tertiary;
+    border: 1px solid $color-accent-1;
+    border-radius: 5px;
+    box-shadow: 0 0.75rem 1.6rem rgba($color-text, 0.18);
+    display: grid;
+    gap: 0.45rem;
+    left: 0;
+    min-width: min(22rem, calc(100vw - 3rem));
+    padding: 0.75rem;
+    position: absolute;
+    top: calc(100% + 0.35rem);
+    z-index: 30;
+  }
+
+  .editor-area :global(.mdx-table-preview) {
+    display: grid;
+    gap: 0.65rem;
+    overflow-x: auto;
+  }
+
   .editor-area :global(.mdx-preview-table) {
-    border-collapse: collapse;
+    border: 1px solid $color-accent-1;
+    border-collapse: separate;
+    border-radius: 5px;
+    border-spacing: 0;
+    overflow: hidden;
     width: 100%;
   }
 
@@ -1194,6 +1304,31 @@
   .editor-area :global(.mdx-preview-table th) {
     background-color: $color-accent-1;
     color: $color-white;
+  }
+
+  .editor-area :global(.mdx-preview-table th) {
+    min-width: 8rem;
+    vertical-align: top;
+  }
+
+  .editor-area :global(.mdx-preview-table th input) {
+    background-color: transparent;
+    border-color: rgba($color-white, 0.45);
+    color: $color-white;
+  }
+
+  .editor-area :global(.mdx-table-row-action) {
+    width: 1%;
+  }
+
+  .editor-area :global(.mdx-table-actions) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+
+  .editor-area :global(.mdx-table-caption) {
+    max-width: 28rem;
   }
 
   .editor-area :global(.mdx-empty-copy) {
