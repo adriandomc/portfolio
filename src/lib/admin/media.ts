@@ -30,9 +30,22 @@ export interface MediaItem {
   references: MediaReference[];
 }
 
+export interface MediaFolder {
+  path: string;
+  repoPath: string;
+  root: MediaRoot;
+  folder: string;
+  parent: string;
+  name: string;
+  itemCount: number;
+  directItemCount: number;
+  hasPlaceholder: boolean;
+}
+
 export interface MediaMutationResult {
   item?: MediaItem;
   items?: MediaItem[];
+  folder?: MediaFolder;
   deleted?: boolean;
   references: MediaReference[];
   updatedFiles: string[];
@@ -64,6 +77,7 @@ export const MIME_EXTENSIONS: Record<string, string> = {
 };
 
 const IMAGE_EXTENSIONS = new Set(Object.values(MIME_EXTENSIONS));
+const FOLDER_PLACEHOLDER = ".gitkeep";
 
 function countOccurrences(input: string, needle: string): number {
   if (!needle) return 0;
@@ -142,6 +156,14 @@ function repoPathFor(root: MediaRoot, folder: string, filename: string): string 
   return ["public", root, folder, filename].filter(Boolean).join("/");
 }
 
+function folderRepoPathFor(root: MediaRoot, folder: string): string {
+  return ["public", root, folder].filter(Boolean).join("/");
+}
+
+function placeholderPathFor(root: MediaRoot, folder: string): string {
+  return repoPathFor(root, folder, FOLDER_PLACEHOLDER);
+}
+
 export function publicPathFromRepoPath(repoPath: string): string {
   if (!repoPath.startsWith("public/")) {
     throw new MediaError("Media path must live under public/.");
@@ -191,6 +213,37 @@ function itemFromFile(
     size: file.size,
     sha: file.sha,
     references: refs,
+  };
+}
+
+function isPlaceholderFile(file: RepoFile): boolean {
+  return file.path.split("/").pop() === FOLDER_PLACEHOLDER;
+}
+
+function isIgnoredRepoFile(file: RepoFile): boolean {
+  return file.path.split("/").pop() === ".DS_Store";
+}
+
+function folderFromPath(
+  root: MediaRoot,
+  folder: string,
+  directItemCount = 0,
+  itemCount = 0,
+  hasPlaceholder = false,
+): MediaFolder {
+  const segments = folder.split("/").filter(Boolean);
+  const name = segments.at(-1) ?? folder;
+  const parent = segments.slice(0, -1).join("/");
+  return {
+    path: `/${root}/${folder}`,
+    repoPath: folderRepoPathFor(root, folder),
+    root,
+    folder,
+    parent,
+    name,
+    itemCount,
+    directItemCount,
+    hasPlaceholder,
   };
 }
 
@@ -258,25 +311,82 @@ export async function findMediaReferences(
   return map;
 }
 
-export async function listMedia(): Promise<MediaItem[]> {
-  const files = (
+function isImageRepoFile(file: RepoFile): boolean {
+  const name = file.path.split("/").pop() ?? "";
+  const ext = path.posix.extname(name).replace(/^\./, "").toLowerCase();
+  return IMAGE_EXTENSIONS.has(ext) && name !== ".DS_Store";
+}
+
+function foldersFromFiles(files: RepoFile[], items: MediaItem[]): MediaFolder[] {
+  const folders = new Map<string, MediaFolder>();
+
+  function ensure(root: MediaRoot, folder: string): MediaFolder {
+    const key = `${root}:${folder}`;
+    const existing = folders.get(key);
+    if (existing) return existing;
+    const next = folderFromPath(root, folder);
+    folders.set(key, next);
+    return next;
+  }
+
+  for (const file of files) {
+    const normalized = file.path.replaceAll("\\", "/").replace(/^\/+/, "");
+    const match = normalized.match(/^public\/(images|assets)\/(.+)$/);
+    if (!match) continue;
+    if (!isImageRepoFile(file) && !isPlaceholderFile(file)) continue;
+
+    const root = normalizeRoot(match[1]);
+    const relParts = match[2].split("/").filter(Boolean);
+    const folderParts = relParts.slice(0, -1);
+    for (let index = 1; index <= folderParts.length; index += 1) {
+      ensure(root, folderParts.slice(0, index).join("/"));
+    }
+    if (isPlaceholderFile(file) && folderParts.length > 0) {
+      ensure(root, folderParts.join("/")).hasPlaceholder = true;
+    }
+  }
+
+  for (const item of items) {
+    if (!item.folder) continue;
+    const parts = item.folder.split("/").filter(Boolean);
+    for (let index = 1; index <= parts.length; index += 1) {
+      const folder = ensure(item.root, parts.slice(0, index).join("/"));
+      folder.itemCount += 1;
+      if (folder.folder === item.folder) folder.directItemCount += 1;
+    }
+  }
+
+  return [...folders.values()].sort((a, b) =>
+    `${a.root}/${a.folder}`.localeCompare(`${b.root}/${b.folder}`),
+  );
+}
+
+export async function listMediaLibrary(): Promise<{
+  items: MediaItem[];
+  folders: MediaFolder[];
+}> {
+  const allFiles = (
     await Promise.all(
       MEDIA_ROOTS.map((root) => listDirRecursive(`public/${root}`)),
     )
-  )
-    .flat()
-    .filter((file) => {
-      const name = file.path.split("/").pop() ?? "";
-      const ext = path.posix.extname(name).replace(/^\./, "").toLowerCase();
-      return IMAGE_EXTENSIONS.has(ext) && name !== ".DS_Store";
-    });
+  ).flat().filter((file) => !isIgnoredRepoFile(file));
+  const files = allFiles.filter(isImageRepoFile);
 
   const refMap = await findMediaReferences(files.map((file) => file.path));
-  return files
+  const items = files
     .map((file) =>
       itemFromFile(file, refMap.get(publicPathFromRepoPath(file.path)) ?? []),
     )
     .sort((a, b) => a.path.localeCompare(b.path));
+
+  return {
+    items,
+    folders: foldersFromFiles(allFiles, items),
+  };
+}
+
+export async function listMedia(): Promise<MediaItem[]> {
+  return (await listMediaLibrary()).items;
 }
 
 async function referenceUpdateChanges(
@@ -385,12 +495,6 @@ async function referenceUpdateChangesMany(
   return { changes, updatedFiles, references };
 }
 
-function isImageRepoFile(file: RepoFile): boolean {
-  const name = file.path.split("/").pop() ?? "";
-  const ext = path.posix.extname(name).replace(/^\./, "").toLowerCase();
-  return IMAGE_EXTENSIONS.has(ext) && name !== ".DS_Store";
-}
-
 export async function uploadMedia(args: {
   content: Buffer;
   fileName: string;
@@ -432,6 +536,37 @@ export async function uploadMedia(args: {
   };
 }
 
+export async function createMediaFolder(args: {
+  root: unknown;
+  folder: unknown;
+}): Promise<MediaMutationResult> {
+  const root = normalizeRoot(args.root);
+  const folder = normalizeFolder(args.folder);
+  if (!folder) throw new MediaError("Folder name is required.");
+
+  const prefix = `${folderRepoPathFor(root, folder)}/`;
+  const files = await listDirRecursive(`public/${root}`);
+  if (files.some((file) => file.path.startsWith(prefix))) {
+    throw new MediaError(`Folder already exists at /${root}/${folder}.`, 409);
+  }
+
+  const repoPath = placeholderPathFor(root, folder);
+  const result = await commitChanges({
+    changes: [{ path: repoPath, content: "", encoding: "utf-8" }],
+    message: `content(media): create /${root}/${folder}`,
+  });
+
+  return {
+    folder: {
+      ...folderFromPath(root, folder),
+      hasPlaceholder: true,
+    },
+    references: [],
+    updatedFiles: [],
+    commitSha: result.commitSha,
+  };
+}
+
 export async function moveMediaFolder(args: {
   root: unknown;
   folder: unknown;
@@ -456,9 +591,14 @@ export async function moveMediaFolder(args: {
   }
 
   const files = (await listDirRecursive(`public/${root}`))
-    .filter(isImageRepoFile)
+    .filter((file) => isImageRepoFile(file) || isPlaceholderFile(file))
     .filter((file) => file.path.startsWith(oldPrefix));
-  if (files.length === 0) throw new MediaError("Folder has no media files.", 404);
+  if (files.length === 0) throw new MediaError("Folder not found.", 404);
+
+  const nextFiles = await listDirRecursive(`public/${nextRoot}`);
+  if (nextFiles.some((file) => file.path.startsWith(nextPrefix))) {
+    throw new MediaError(`Folder already exists at /${nextRoot}/${nextFolder}.`, 409);
+  }
 
   const oldPaths = new Set(files.map((file) => file.path));
   const binaries = await Promise.all(
@@ -477,10 +617,12 @@ export async function moveMediaFolder(args: {
     }),
   );
 
-  const replacements = binaries.map(({ file, nextRepoPath }) => ({
-    oldPublicPath: publicPathFromRepoPath(file.path),
-    nextPublicPath: publicPathFromRepoPath(nextRepoPath),
-  }));
+  const replacements = binaries
+    .filter(({ file }) => isImageRepoFile(file))
+    .map(({ file, nextRepoPath }) => ({
+      oldPublicPath: publicPathFromRepoPath(file.path),
+      nextPublicPath: publicPathFromRepoPath(nextRepoPath),
+    }));
   const refUpdates = await referenceUpdateChangesMany(replacements);
   const result = await commitChanges({
     changes: [
@@ -496,10 +638,13 @@ export async function moveMediaFolder(args: {
   });
 
   const refsByPath = await findMediaReferences(
-    binaries.map(({ nextRepoPath }) => nextRepoPath),
+    binaries
+      .filter(({ file }) => isImageRepoFile(file))
+      .map(({ nextRepoPath }) => nextRepoPath),
   );
+  const movedImages = binaries.filter(({ file }) => isImageRepoFile(file));
   return {
-    items: binaries.map(({ binary, nextRepoPath }) =>
+    items: movedImages.map(({ binary, nextRepoPath }) =>
       itemFromFile(
         {
           path: nextRepoPath,
@@ -508,6 +653,20 @@ export async function moveMediaFolder(args: {
         },
         refsByPath.get(publicPathFromRepoPath(nextRepoPath)) ?? [],
       ),
+    ),
+    folder: folderFromPath(
+      nextRoot,
+      nextFolder,
+      movedImages.filter(({ nextRepoPath }) => {
+        const currentFolder = nextRepoPath
+          .slice(`public/${nextRoot}/`.length)
+          .split("/")
+          .slice(0, -1)
+          .join("/");
+        return currentFolder === nextFolder;
+      }).length,
+      movedImages.length,
+      binaries.some(({ nextRepoPath }) => nextRepoPath === placeholderPathFor(nextRoot, nextFolder)),
     ),
     references: refUpdates.references,
     updatedFiles: refUpdates.updatedFiles,
@@ -585,11 +744,13 @@ export async function deleteMediaFolder(args: {
 
   const prefix = `public/${root}/${folder}/`;
   const files = (await listDirRecursive(`public/${root}`))
-    .filter(isImageRepoFile)
+    .filter((file) => isImageRepoFile(file) || isPlaceholderFile(file))
     .filter((file) => file.path.startsWith(prefix));
-  if (files.length === 0) throw new MediaError("Folder has no media files.", 404);
+  if (files.length === 0) throw new MediaError("Folder not found.", 404);
 
-  const refMap = await findMediaReferences(files.map((file) => file.path));
+  const refMap = await findMediaReferences(
+    files.filter(isImageRepoFile).map((file) => file.path),
+  );
   const references = [...refMap.values()].flat();
   if (references.length > 0 && !args.force) {
     throw new MediaError("Folder contains referenced media.", 409, references);

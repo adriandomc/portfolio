@@ -1,8 +1,9 @@
 import type { APIRoute } from "astro";
 import {
+  createMediaFolder,
   deleteMedia,
   deleteMediaFolder,
-  listMedia,
+  listMediaLibrary,
   MAX_MEDIA_SIZE,
   MediaError,
   moveMedia,
@@ -38,14 +39,38 @@ function jsonError(err: unknown, fallback = "Media request failed."): Response {
 
 export const GET: APIRoute = async () => {
   try {
-    const items = await listMedia();
-    return json({ items });
+    return json(await listMediaLibrary());
   } catch (err) {
     return jsonError(err, "Failed to list media.");
   }
 };
 
 export const POST: APIRoute = async ({ request }) => {
+  const contentType = request.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    let payload: {
+      kind?: "folder";
+      root?: string;
+      folder?: string;
+    };
+    try {
+      payload = await request.json();
+    } catch {
+      return json({ error: "Invalid JSON body." }, 400);
+    }
+    if (payload.kind !== "folder") {
+      return json({ error: "Unsupported media action." }, 400);
+    }
+    try {
+      return json(await createMediaFolder({
+        root: payload.root,
+        folder: payload.folder,
+      }));
+    } catch (err) {
+      return jsonError(err, "Create folder failed.");
+    }
+  }
+
   let form: FormData;
   try {
     form = await request.formData();
