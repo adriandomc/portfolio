@@ -553,7 +553,14 @@ async function referenceUpdateChangesMany(
   return { changes, updatedFiles, references };
 }
 
-export async function uploadMedia(args: {
+interface PreparedUpload {
+  repoPath: string;
+  filename: string;
+  size: number;
+  change: RepoChange;
+}
+
+async function prepareUpload(args: {
   content: Buffer;
   fileName: string;
   type: string;
@@ -561,7 +568,7 @@ export async function uploadMedia(args: {
   root?: unknown;
   folder?: unknown;
   filename?: unknown;
-}): Promise<MediaMutationResult> {
+}): Promise<PreparedUpload> {
   if (args.size > MAX_MEDIA_SIZE) {
     throw new MediaError(`File too large (max ${MAX_MEDIA_SIZE / 1024 / 1024}MB).`);
   }
@@ -580,18 +587,90 @@ export async function uploadMedia(args: {
   if (existing) {
     throw new MediaError(`Media already exists at ${publicPathFromRepoPath(repoPath)}.`, 409);
   }
+  return {
+    repoPath,
+    filename,
+    size: args.content.length,
+    change: { path: repoPath, content: args.content, encoding: "base64" },
+  };
+}
 
+export async function uploadMedia(args: {
+  content: Buffer;
+  fileName: string;
+  type: string;
+  size: number;
+  root?: unknown;
+  folder?: unknown;
+  filename?: unknown;
+}): Promise<MediaMutationResult> {
+  const prepared = await prepareUpload(args);
   const result = await commitChanges({
-    changes: [{ path: repoPath, content: args.content, encoding: "base64" }],
-    message: `content(media): upload ${filename}`,
+    changes: [prepared.change],
+    message: `content(media): upload ${prepared.filename}`,
   });
-
   return {
     item: itemFromFile({
-      path: repoPath,
-      size: args.content.length,
-      sha: result.files[repoPath] ?? "local",
+      path: prepared.repoPath,
+      size: prepared.size,
+      sha: result.files[prepared.repoPath] ?? "local",
     }),
+    references: [],
+    updatedFiles: [],
+    commitSha: result.commitSha,
+  };
+}
+
+export async function uploadMediaBatch(args: {
+  items: Array<{
+    content: Buffer;
+    fileName: string;
+    type: string;
+    size: number;
+    filename?: unknown;
+  }>;
+  root?: unknown;
+  folder?: unknown;
+}): Promise<MediaMutationResult> {
+  if (args.items.length === 0) {
+    throw new MediaError("No files to upload.");
+  }
+  const prepared: PreparedUpload[] = [];
+  const seen = new Set<string>();
+  for (const item of args.items) {
+    const entry = await prepareUpload({
+      content: item.content,
+      fileName: item.fileName,
+      type: item.type,
+      size: item.size,
+      root: args.root,
+      folder: args.folder,
+      filename: item.filename,
+    });
+    if (seen.has(entry.repoPath)) {
+      throw new MediaError(`Duplicate filename in batch: ${entry.filename}`);
+    }
+    seen.add(entry.repoPath);
+    prepared.push(entry);
+  }
+  const message =
+    prepared.length === 1
+      ? `content(media): upload ${prepared[0].filename}`
+      : `content(media): upload ${prepared.length} files`;
+  const result = await commitChanges({
+    changes: prepared.map((p) => p.change),
+    message,
+  });
+  const items: MediaItem[] = prepared.map((p) =>
+    itemFromFile({
+      path: p.repoPath,
+      size: p.size,
+      sha: result.files[p.repoPath] ?? "local",
+    }),
+  );
+  return {
+    item: items.at(-1),
+    items,
     references: [],
     updatedFiles: [],
     commitSha: result.commitSha,
@@ -855,5 +934,237 @@ export async function deleteMedia(args: {
     references,
     updatedFiles: [],
     commitSha: result.commitSha,
+  };
+}
+
+export type PendingAction =
+  | { kind: "delete-file"; repoPath: string; force?: boolean }
+  | { kind: "delete-folder"; root: unknown; folder: unknown; force?: boolean }
+  | {
+      kind: "move-file";
+      repoPath: string;
+      root?: unknown;
+      folder?: unknown;
+      filename?: unknown;
+    }
+  | {
+      kind: "move-folder";
+      root: unknown;
+      folder: unknown;
+      nextRoot?: unknown;
+      nextFolder: unknown;
+    };
+
+interface ActionPlan {
+  changes: RepoChange[];
+  replacements: Array<{ oldPublicPath: string; nextPublicPath: string }>;
+}
+
+async function planDeleteFile(action: {
+  repoPath: string;
+  force?: boolean;
+}): Promise<ActionPlan> {
+  assertMediaRepoPath(action.repoPath);
+  const file = await getBinaryFile(action.repoPath);
+  if (!file) throw new MediaError(`Media file not found: ${action.repoPath}`, 404);
+  const refMap = await findMediaReferences([action.repoPath]);
+  const references = refMap.get(publicPathFromRepoPath(action.repoPath)) ?? [];
+  if (references.length > 0 && !action.force) {
+    throw new MediaError(
+      `Media is still referenced: ${publicPathFromRepoPath(action.repoPath)}`,
+      409,
+      references,
+    );
+  }
+  return {
+    changes: [{ path: action.repoPath, delete: true }],
+    replacements: [],
+  };
+}
+
+async function planDeleteFolder(action: {
+  root: unknown;
+  folder: unknown;
+  force?: boolean;
+}): Promise<ActionPlan> {
+  const root = normalizeRoot(action.root);
+  const folder = normalizeFolder(action.folder);
+  if (!folder) throw new MediaError("Root media folders cannot be deleted.");
+  const prefix = `${folderRepoPathFor(root, folder)}/`;
+  const files = (await listDirRecursive(MEDIA_ROOT_CONFIG[root].repoPath))
+    .filter((file) => isManagedMediaRepoFile(file) || isPlaceholderFile(file))
+    .filter((file) => file.path.startsWith(prefix));
+  if (files.length === 0) throw new MediaError(`Folder not found: /${root}/${folder}`, 404);
+  const refMap = await findMediaReferences(
+    files.filter(isManagedMediaRepoFile).map((file) => file.path),
+  );
+  const references = [...refMap.values()].flat();
+  if (references.length > 0 && !action.force) {
+    throw new MediaError(
+      `Folder contains referenced media: /${root}/${folder}`,
+      409,
+      references,
+    );
+  }
+  return {
+    changes: files.map((file) => ({ path: file.path, delete: true })),
+    replacements: [],
+  };
+}
+
+async function planMoveFile(action: {
+  repoPath: string;
+  root?: unknown;
+  folder?: unknown;
+  filename?: unknown;
+}): Promise<ActionPlan> {
+  const current = assertMediaRepoPath(action.repoPath);
+  const file = await getBinaryFile(action.repoPath);
+  if (!file) throw new MediaError(`Media file not found: ${action.repoPath}`, 404);
+  const root = action.root === undefined ? current.root : normalizeRoot(action.root);
+  const folder =
+    action.folder === undefined ? current.folder : normalizeFolder(action.folder);
+  const filename =
+    action.filename === undefined
+      ? current.name
+      : normalizeFilename(action.filename, current.name, current.ext, root);
+  const nextRepoPath = repoPathFor(root, folder, filename);
+  if (nextRepoPath === action.repoPath) {
+    return { changes: [], replacements: [] };
+  }
+  const existing = await getBinaryFile(nextRepoPath);
+  if (existing) {
+    throw new MediaError(
+      `Media already exists at ${publicPathFromRepoPath(nextRepoPath)}.`,
+      409,
+    );
+  }
+  return {
+    changes: [
+      { path: nextRepoPath, content: file.content, encoding: "base64" },
+      { path: action.repoPath, delete: true },
+    ],
+    replacements: [
+      {
+        oldPublicPath: publicPathFromRepoPath(action.repoPath),
+        nextPublicPath: publicPathFromRepoPath(nextRepoPath),
+      },
+    ],
+  };
+}
+
+async function planMoveFolder(action: {
+  root: unknown;
+  folder: unknown;
+  nextRoot?: unknown;
+  nextFolder: unknown;
+}): Promise<ActionPlan> {
+  const root = normalizeRoot(action.root);
+  const folder = normalizeFolder(action.folder);
+  const nextRoot = action.nextRoot === undefined ? root : normalizeRoot(action.nextRoot);
+  const nextFolder = normalizeFolder(action.nextFolder);
+  if (!folder) throw new MediaError("Root media folders cannot be renamed.");
+  if (!nextFolder) throw new MediaError("Folder name is required.");
+  const oldPrefix = `${folderRepoPathFor(root, folder)}/`;
+  const nextPrefix = `${folderRepoPathFor(nextRoot, nextFolder)}/`;
+  if (oldPrefix === nextPrefix) {
+    return { changes: [], replacements: [] };
+  }
+  if (nextPrefix.startsWith(oldPrefix)) {
+    throw new MediaError("A folder cannot be moved into itself.");
+  }
+  const files = (await listDirRecursive(MEDIA_ROOT_CONFIG[root].repoPath))
+    .filter((file) => isManagedMediaRepoFile(file) || isPlaceholderFile(file))
+    .filter((file) => file.path.startsWith(oldPrefix));
+  if (files.length === 0) throw new MediaError(`Folder not found: /${root}/${folder}`, 404);
+  const nextFiles = await listDirRecursive(MEDIA_ROOT_CONFIG[nextRoot].repoPath);
+  if (nextFiles.some((file) => file.path.startsWith(nextPrefix))) {
+    throw new MediaError(`Folder already exists at /${nextRoot}/${nextFolder}.`, 409);
+  }
+  const oldPaths = new Set(files.map((file) => file.path));
+  const binaries = await Promise.all(
+    files.map(async (file) => {
+      const binary = await getBinaryFile(file.path);
+      if (!binary) throw new MediaError(`Media file not found: ${file.path}`, 404);
+      const nextRepoPath = `${nextPrefix}${file.path.slice(oldPrefix.length)}`;
+      const existing = await getBinaryFile(nextRepoPath);
+      if (existing && !oldPaths.has(nextRepoPath)) {
+        throw new MediaError(
+          `Media already exists at ${publicPathFromRepoPath(nextRepoPath)}.`,
+          409,
+        );
+      }
+      return { file, binary, nextRepoPath };
+    }),
+  );
+  const replacements = binaries
+    .filter(({ file }) => isManagedMediaRepoFile(file))
+    .map(({ file, nextRepoPath }) => ({
+      oldPublicPath: publicPathFromRepoPath(file.path),
+      nextPublicPath: publicPathFromRepoPath(nextRepoPath),
+    }));
+  return {
+    changes: [
+      ...binaries.map(({ binary, nextRepoPath }) => ({
+        path: nextRepoPath,
+        content: binary.content,
+        encoding: "base64" as const,
+      })),
+      ...binaries.map(({ file }) => ({ path: file.path, delete: true as const })),
+    ],
+    replacements,
+  };
+}
+
+export async function publishPendingActions(args: {
+  actions: PendingAction[];
+}): Promise<{
+  commitSha: string;
+  applied: number;
+  references: MediaReference[];
+  updatedFiles: string[];
+}> {
+  if (!Array.isArray(args.actions) || args.actions.length === 0) {
+    throw new MediaError("No pending actions to publish.");
+  }
+  const allChanges: RepoChange[] = [];
+  const allReplacements: Array<{ oldPublicPath: string; nextPublicPath: string }> = [];
+
+  for (const action of args.actions) {
+    let plan: ActionPlan;
+    switch (action.kind) {
+      case "delete-file":
+        plan = await planDeleteFile(action);
+        break;
+      case "delete-folder":
+        plan = await planDeleteFolder(action);
+        break;
+      case "move-file":
+        plan = await planMoveFile(action);
+        break;
+      case "move-folder":
+        plan = await planMoveFolder(action);
+        break;
+      default:
+        throw new MediaError(`Unknown action kind: ${(action as { kind?: string }).kind ?? "(missing)"}`);
+    }
+    allChanges.push(...plan.changes);
+    allReplacements.push(...plan.replacements);
+  }
+
+  const refUpdates = await referenceUpdateChangesMany(allReplacements);
+  const message =
+    args.actions.length === 1
+      ? `content(media): publish 1 change`
+      : `content(media): publish ${args.actions.length} changes`;
+  const result = await commitChanges({
+    changes: [...allChanges, ...refUpdates.changes],
+    message,
+  });
+  return {
+    commitSha: result.commitSha,
+    applied: args.actions.length,
+    references: refUpdates.references,
+    updatedFiles: refUpdates.updatedFiles,
   };
 }

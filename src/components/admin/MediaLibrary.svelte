@@ -27,11 +27,53 @@
 
   type DialogMode = "upload" | "new-folder" | "rename" | "move" | "delete";
 
+  type PendingAction =
+    | {
+        id: string;
+        kind: "delete-file";
+        repoPath: string;
+        label: string;
+        force?: boolean;
+      }
+    | {
+        id: string;
+        kind: "delete-folder";
+        root: MediaRoot;
+        folder: string;
+        label: string;
+        force?: boolean;
+      }
+    | {
+        id: string;
+        kind: "move-file";
+        repoPath: string;
+        root: MediaRoot;
+        folder: string;
+        filename: string;
+        previousLabel: string;
+        nextLabel: string;
+      }
+    | {
+        id: string;
+        kind: "move-folder";
+        root: MediaRoot;
+        folder: string;
+        nextRoot: MediaRoot;
+        nextFolder: string;
+        previousLabel: string;
+        nextLabel: string;
+      };
+
+  type PendingUpload = { id: string; file: File; filename: string };
+
+  const PENDING_STORAGE_KEY = "admin-media-pending-v1";
+
   let items = $state<MediaItem[]>([]);
   let folders = $state<MediaFolder[]>([]);
   let selectedNode = $state<SelectedNode | null>(null);
   let loading = $state(true);
   let saving = $state(false);
+  let publishing = $state(false);
   let error = $state<string | null>(null);
   let query = $state("");
   let currentRoot = $state<MediaRoot | null>(null);
@@ -40,11 +82,12 @@
   let activeDialog = $state<DialogMode | null>(null);
   let blockingRefs = $state<MediaReference[] | null>(null);
   let deleteTarget = $state<SelectedNode | null>(null);
+  let pendingActions = $state<PendingAction[]>([]);
+  let forceDelete = $state(false);
 
   let uploadRoot = $state<MediaRoot>("images");
   let uploadFolder = $state("");
-  let uploadFilename = $state("");
-  let uploadFile = $state<File | null>(null);
+  let uploadFiles = $state<PendingUpload[]>([]);
 
   let newFolderRoot = $state<MediaRoot>("images");
   let newFolderParent = $state("");
@@ -77,6 +120,80 @@
   const moveDestinations = $derived(
     folders.filter((folder) => folder.root === moveRoot && !isBlockedMoveDestination(folder.folder)),
   );
+  const pendingByFilePath = $derived(
+    new Map(
+      pendingActions
+        .filter(
+          (action): action is Extract<PendingAction, { kind: "delete-file" | "move-file" }> =>
+            action.kind === "delete-file" || action.kind === "move-file",
+        )
+        .map((action) => [action.repoPath, action]),
+    ),
+  );
+  const pendingByFolderKey = $derived(
+    new Map(
+      pendingActions
+        .filter(
+          (action): action is Extract<
+            PendingAction,
+            { kind: "delete-folder" | "move-folder" }
+          > => action.kind === "delete-folder" || action.kind === "move-folder",
+        )
+        .map((action) => [`${action.root}/${action.folder}`, action]),
+    ),
+  );
+
+  function generateId() {
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  function loadPending() {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(PENDING_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) pendingActions = parsed;
+    } catch {
+      pendingActions = [];
+    }
+  }
+
+  function persistPending() {
+    if (typeof window === "undefined") return;
+    try {
+      if (pendingActions.length === 0) {
+        window.localStorage.removeItem(PENDING_STORAGE_KEY);
+      } else {
+        window.localStorage.setItem(PENDING_STORAGE_KEY, JSON.stringify(pendingActions));
+      }
+    } catch {
+      /* ignore storage errors */
+    }
+  }
+
+  function queueAction(action: PendingAction) {
+    pendingActions = [...pendingActions, action];
+    persistPending();
+  }
+
+  function removePending(id: string) {
+    pendingActions = pendingActions.filter((entry) => entry.id !== id);
+    persistPending();
+  }
+
+  function discardAllPending() {
+    pendingActions = [];
+    persistPending();
+  }
+
+  function pendingForNode(node: SelectedNode | null): PendingAction | undefined {
+    if (!node) return undefined;
+    if (node.type === "file") return pendingByFilePath.get(node.item.repoPath);
+    if (node.type === "folder")
+      return pendingByFolderKey.get(`${node.folder.root}/${node.folder.folder}`);
+    return undefined;
+  }
 
   async function load() {
     loading = true;
@@ -242,11 +359,23 @@
   function openUploadDialog() {
     uploadRoot = activeRoot();
     uploadFolder = activeFolderPath();
-    uploadFilename = "";
-    uploadFile = null;
+    uploadFiles = [];
     activeDialog = "upload";
     blockingRefs = null;
     error = null;
+  }
+
+  function addUploadFiles(picked: FileList | null) {
+    if (!picked || picked.length === 0) return;
+    const next: PendingUpload[] = [];
+    for (const file of Array.from(picked)) {
+      next.push({ id: generateId(), file, filename: file.name });
+    }
+    uploadFiles = [...uploadFiles, ...next];
+  }
+
+  function removeUploadFile(id: string) {
+    uploadFiles = uploadFiles.filter((entry) => entry.id !== id);
   }
 
   function openNewFolderDialog() {
@@ -278,6 +407,7 @@
   function openDeleteDialog(node = selectedNode) {
     if (!canMutate(node)) return;
     deleteTarget = node;
+    forceDelete = false;
     activeDialog = "delete";
     blockingRefs = null;
     error = null;
@@ -294,14 +424,16 @@
   }
 
   async function upload() {
-    if (!uploadFile) return;
+    if (uploadFiles.length === 0) return;
     saving = true;
     error = null;
     const fd = new FormData();
-    fd.append("file", uploadFile);
     fd.append("root", uploadRoot);
     fd.append("folder", uploadFolder);
-    if (uploadFilename.trim()) fd.append("filename", uploadFilename.trim());
+    for (const entry of uploadFiles) {
+      fd.append("file", entry.file);
+      fd.append("filename", entry.filename.trim() || entry.file.name);
+    }
     try {
       const res = await fetch("/api/admin/media", {
         method: "POST",
@@ -353,109 +485,150 @@
     }
   }
 
-  async function renameSelected() {
+  function queueRename() {
     if (!selectedNode || !canMutate(selectedNode) || !renameValue.trim()) return;
-    saving = true;
-    error = null;
-    try {
-      const payload =
-        selectedNode.type === "folder"
-          ? {
-              kind: "folder",
-              root: selectedNode.folder.root,
-              folder: selectedNode.folder.folder,
-              nextRoot: selectedNode.folder.root,
-              nextFolder: joinFolder(selectedNode.folder.parent, renameValue.trim()),
-            }
-          : {
-              repoPath: selectedNode.item.repoPath,
-              root: selectedNode.item.root,
-              folder: selectedNode.item.folder,
-              filename: renameValue.trim(),
-            };
-      const res = await fetch("/api/admin/media", {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-      closeDialog();
-      await load();
-      if (data.item) {
-        currentRoot = data.item.root;
-        currentFolder = data.item.folder;
-        selectNode({ type: "file", item: data.item });
-      } else if (data.folder) {
-        currentRoot = data.folder.root;
-        currentFolder = data.folder.parent;
-        selectNode({ type: "folder", folder: data.folder });
+    if (selectedNode.type === "folder") {
+      const nextFolder = joinFolder(selectedNode.folder.parent, renameValue.trim());
+      if (nextFolder === selectedNode.folder.folder) {
+        closeDialog();
+        return;
       }
-    } catch (err) {
-      error = err instanceof Error ? err.message : "Rename failed.";
-    } finally {
-      saving = false;
+      queueAction({
+        id: generateId(),
+        kind: "move-folder",
+        root: selectedNode.folder.root,
+        folder: selectedNode.folder.folder,
+        nextRoot: selectedNode.folder.root,
+        nextFolder,
+        previousLabel: `/${selectedNode.folder.root}/${selectedNode.folder.folder}`,
+        nextLabel: `/${selectedNode.folder.root}/${nextFolder}`,
+      });
+    } else {
+      const nextFilename = renameValue.trim();
+      if (nextFilename === selectedNode.item.name) {
+        closeDialog();
+        return;
+      }
+      queueAction({
+        id: generateId(),
+        kind: "move-file",
+        repoPath: selectedNode.item.repoPath,
+        root: selectedNode.item.root,
+        folder: selectedNode.item.folder,
+        filename: nextFilename,
+        previousLabel: selectedNode.item.path,
+        nextLabel: `/${selectedNode.item.root}/${[selectedNode.item.folder, nextFilename].filter(Boolean).join("/")}`,
+      });
     }
+    closeDialog();
   }
 
-  async function moveSelected() {
+  function queueMove() {
     if (!selectedNode || !canMutate(selectedNode)) return;
-    saving = true;
-    error = null;
-    try {
-      const payload =
-        selectedNode.type === "folder"
-          ? {
-              kind: "folder",
-              root: selectedNode.folder.root,
-              folder: selectedNode.folder.folder,
-              nextRoot: moveRoot,
-              nextFolder: joinFolder(moveFolder, selectedNode.folder.name),
-            }
-          : {
-              repoPath: selectedNode.item.repoPath,
-              root: moveRoot,
-              folder: moveFolder,
-              filename: selectedNode.item.name,
-            };
-      const res = await fetch("/api/admin/media", {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-      closeDialog();
-      await load();
-      if (data.item) {
-        currentRoot = data.item.root;
-        currentFolder = data.item.folder;
-        selectNode({ type: "file", item: data.item });
-      } else if (data.folder) {
-        currentRoot = data.folder.root;
-        currentFolder = data.folder.parent;
-        selectNode({ type: "folder", folder: data.folder });
+    if (selectedNode.type === "folder") {
+      const nextFolder = joinFolder(moveFolder, selectedNode.folder.name);
+      if (nextFolder === selectedNode.folder.folder && moveRoot === selectedNode.folder.root) {
+        closeDialog();
+        return;
       }
-    } catch (err) {
-      error = err instanceof Error ? err.message : "Move failed.";
-    } finally {
-      saving = false;
+      queueAction({
+        id: generateId(),
+        kind: "move-folder",
+        root: selectedNode.folder.root,
+        folder: selectedNode.folder.folder,
+        nextRoot: moveRoot,
+        nextFolder,
+        previousLabel: `/${selectedNode.folder.root}/${selectedNode.folder.folder}`,
+        nextLabel: `/${moveRoot}/${nextFolder}`,
+      });
+    } else {
+      if (moveRoot === selectedNode.item.root && moveFolder === selectedNode.item.folder) {
+        closeDialog();
+        return;
+      }
+      queueAction({
+        id: generateId(),
+        kind: "move-file",
+        repoPath: selectedNode.item.repoPath,
+        root: moveRoot,
+        folder: moveFolder,
+        filename: selectedNode.item.name,
+        previousLabel: selectedNode.item.path,
+        nextLabel: `/${moveRoot}/${[moveFolder, selectedNode.item.name].filter(Boolean).join("/")}`,
+      });
     }
+    closeDialog();
   }
 
-  async function deleteSelected() {
+  function queueDelete() {
     if (!deleteTarget) return;
-    saving = true;
+    if (deleteTarget.type === "folder") {
+      queueAction({
+        id: generateId(),
+        kind: "delete-folder",
+        root: deleteTarget.folder.root,
+        folder: deleteTarget.folder.folder,
+        label: `/${deleteTarget.folder.root}/${deleteTarget.folder.folder}`,
+        force: forceDelete || undefined,
+      });
+    } else {
+      queueAction({
+        id: generateId(),
+        kind: "delete-file",
+        repoPath: deleteTarget.item.repoPath,
+        label: deleteTarget.item.path,
+        force: forceDelete || undefined,
+      });
+    }
+    deleteTarget = null;
+    closeDialog();
+  }
+
+  async function publishPending() {
+    if (pendingActions.length === 0) return;
+    publishing = true;
     error = null;
+    blockingRefs = null;
     try {
-      const res = await fetch("/api/admin/media", {
-        method: "DELETE",
+      const payload = {
+        actions: pendingActions.map((action) => {
+          if (action.kind === "delete-file") {
+            return {
+              kind: "delete-file",
+              repoPath: action.repoPath,
+              force: action.force ?? false,
+            };
+          }
+          if (action.kind === "delete-folder") {
+            return {
+              kind: "delete-folder",
+              root: action.root,
+              folder: action.folder,
+              force: action.force ?? false,
+            };
+          }
+          if (action.kind === "move-file") {
+            return {
+              kind: "move-file",
+              repoPath: action.repoPath,
+              root: action.root,
+              folder: action.folder,
+              filename: action.filename,
+            };
+          }
+          return {
+            kind: "move-folder",
+            root: action.root,
+            folder: action.folder,
+            nextRoot: action.nextRoot,
+            nextFolder: action.nextFolder,
+          };
+        }),
+      };
+      const res = await fetch("/api/admin/media/publish", {
+        method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(
-          deleteTarget.type === "folder"
-            ? { kind: "folder", root: deleteTarget.folder.root, folder: deleteTarget.folder.folder }
-            : { repoPath: deleteTarget.item.repoPath },
-        ),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -464,27 +637,19 @@
         }
         throw new Error(data.error ?? `HTTP ${res.status}`);
       }
-      const previous = deleteTarget;
-      closeDialog();
+      pendingActions = [];
+      persistPending();
       selectedNode = null;
-      deleteTarget = null;
-      if (
-        previous.type === "folder" &&
-        currentRoot === previous.folder.root &&
-        (currentFolder === previous.folder.folder ||
-          currentFolder.startsWith(`${previous.folder.folder}/`))
-      ) {
-        currentFolder = previous.folder.parent;
-      }
       await load();
     } catch (err) {
-      error = err instanceof Error ? err.message : "Delete failed.";
+      error = err instanceof Error ? err.message : "Publish failed.";
     } finally {
-      saving = false;
+      publishing = false;
     }
   }
 
   $effect(() => {
+    loadPending();
     load();
   });
 </script>
@@ -523,6 +688,71 @@
 
   {#if error}
     <p class="error" role="alert">{error}</p>
+  {/if}
+
+  {#if pendingActions.length > 0}
+    <div class="pending-bar" role="region" aria-label="Pending changes">
+      <header>
+        <strong>
+          {pendingActions.length} pending change{pendingActions.length === 1 ? "" : "s"}
+        </strong>
+        <div class="pending-actions">
+          <button
+            type="button"
+            class="secondary"
+            onclick={discardAllPending}
+            disabled={publishing}
+          >
+            Discard all
+          </button>
+          <button type="button" onclick={publishPending} disabled={publishing}>
+            {#if publishing}<span class="spin"><Loader2 size={16} /></span>{/if}
+            Publish
+          </button>
+        </div>
+      </header>
+      <ul class="pending-list">
+        {#each pendingActions as action (action.id)}
+          <li>
+            {#if action.kind === "delete-file"}
+              <span class="badge danger">delete</span>
+              <span class="pending-label">{action.label}</span>
+              {#if action.force}<span class="badge force">force</span>{/if}
+            {:else if action.kind === "delete-folder"}
+              <span class="badge danger">delete folder</span>
+              <span class="pending-label">{action.label}</span>
+              {#if action.force}<span class="badge force">force</span>{/if}
+            {:else if action.kind === "move-file"}
+              <span class="badge">move</span>
+              <span class="pending-label">{action.previousLabel} → {action.nextLabel}</span>
+            {:else}
+              <span class="badge">move folder</span>
+              <span class="pending-label">{action.previousLabel} → {action.nextLabel}</span>
+            {/if}
+            <button
+              type="button"
+              class="row-remove"
+              aria-label="Discard this change"
+              onclick={() => removePending(action.id)}
+              disabled={publishing}
+            >
+              <X size={14} />
+            </button>
+          </li>
+        {/each}
+      </ul>
+      {#if blockingRefs}
+        <div class="refs warning">
+          <strong>Publish blocked by references</strong>
+          {#each blockingRefs as ref}
+            <a href={`/admin/${ref.collection}/${ref.slug}`}>
+              <Pencil size={14} />
+              {ref.collection}/{ref.slug} · {ref.field} · {ref.count}
+            </a>
+          {/each}
+        </div>
+      {/if}
+    </div>
   {/if}
 
   <div class="drive-bar">
@@ -573,9 +803,12 @@
           {/if}
 
           {#each visibleFolders as entry (`${entry.root}/${entry.folder}`)}
+            {@const folderPending = pendingByFolderKey.get(`${entry.root}/${entry.folder}`)}
             <button
               type="button"
               class:selected={selectedNode?.type === "folder" && selectedNode.folder.root === entry.root && selectedNode.folder.folder === entry.folder}
+              class:pending={Boolean(folderPending)}
+              class:pending-delete={folderPending?.kind === "delete-folder"}
               class="folder-card"
               oncontextmenu={(event) => showContext(event, { type: "folder", folder: entry })}
               onclick={() => selectNode({ type: "folder", folder: entry })}
@@ -584,22 +817,41 @@
             >
               <Folder class="folder-icon" size={30} />
               <span>{entry.name}</span>
-              <small>{entry.itemCount} files</small>
+              <small>
+                {#if folderPending?.kind === "delete-folder"}
+                  pending delete
+                {:else if folderPending?.kind === "move-folder"}
+                  → {folderPending.nextLabel}
+                {:else}
+                  {entry.itemCount} files
+                {/if}
+              </small>
               <MoreVertical size={16} />
             </button>
           {/each}
 
           {#each visibleFiles as item (item.repoPath)}
+            {@const filePending = pendingByFilePath.get(item.repoPath)}
             <button
               type="button"
               class:selected={selectedNode?.type === "file" && selectedNode.item.repoPath === item.repoPath}
+              class:pending={Boolean(filePending)}
+              class:pending-delete={filePending?.kind === "delete-file"}
               class="media-tile"
               oncontextmenu={(event) => showContext(event, { type: "file", item })}
               onclick={() => selectNode({ type: "file", item })}
             >
               <img src={item.path} alt="" loading="lazy" />
               <span>{item.name}</span>
-              <small>{item.references.length} refs · {Math.round(item.size / 1024)}KB</small>
+              <small>
+                {#if filePending?.kind === "delete-file"}
+                  pending delete
+                {:else if filePending?.kind === "move-file"}
+                  → {filePending.nextLabel}
+                {:else}
+                  {item.references.length} refs · {Math.round(item.size / 1024)}KB
+                {/if}
+              </small>
             </button>
           {/each}
 
@@ -634,12 +886,26 @@
           <strong>{selectedRefs.length}</strong>
         </div>
 
+        {#if pendingForNode(selectedNode)}
+          {@const pending = pendingForNode(selectedNode)!}
+          <p class="muted">
+            Pending {pending.kind.replace("-", " ")} queued. Publish or discard before staging another change.
+          </p>
+        {/if}
         <div class="inspector-actions">
-          <button type="button" onclick={() => openRenameDialog()} disabled={!canMutate(selectedNode) || saving}>
+          <button
+            type="button"
+            onclick={() => openRenameDialog()}
+            disabled={!canMutate(selectedNode) || Boolean(pendingForNode(selectedNode))}
+          >
             <Pencil size={16} />
             Rename
           </button>
-          <button type="button" onclick={() => openMoveDialog()} disabled={!canMutate(selectedNode) || saving}>
+          <button
+            type="button"
+            onclick={() => openMoveDialog()}
+            disabled={!canMutate(selectedNode) || Boolean(pendingForNode(selectedNode))}
+          >
             <FolderInput size={16} />
             Move
           </button>
@@ -647,7 +913,7 @@
             type="button"
             class="danger"
             onclick={() => openDeleteDialog()}
-            disabled={!canMutate(selectedNode) || saving}
+            disabled={!canMutate(selectedNode) || Boolean(pendingForNode(selectedNode))}
           >
             <Trash2 size={16} />
             Delete
@@ -704,9 +970,9 @@
 
   {#if activeDialog === "upload"}
     <div class="dialog-backdrop" role="presentation" onclick={(event) => event.target === event.currentTarget && closeDialog()}>
-      <div class="media-dialog" role="dialog" aria-modal="true" aria-label="Upload image">
+      <div class="media-dialog wide" role="dialog" aria-modal="true" aria-label="Upload images">
         <header>
-          <h2>Upload image</h2>
+          <h2>Upload {uploadFiles.length > 1 ? `${uploadFiles.length} images` : "image"}</h2>
           <button type="button" aria-label="Close" onclick={closeDialog}><X size={16} /></button>
         </header>
         <div class="field-grid">
@@ -720,27 +986,49 @@
             <span>Folder</span>
             <input bind:value={uploadFolder} placeholder="projects/voltalfa" />
           </label>
-          <label>
-            <span>Filename</span>
-            <input bind:value={uploadFilename} placeholder="1.png" />
-          </label>
           <label class="file-input">
             <ImagePlus size={15} />
-            {uploadFile?.name ?? "Choose image"}
+            {uploadFiles.length === 0 ? "Choose images" : `+ Add more (${uploadFiles.length} selected)`}
             <input
               type="file"
               accept="image/*"
+              multiple
               onchange={(event) => {
-                uploadFile = (event.currentTarget as HTMLInputElement).files?.[0] ?? null;
+                const input = event.currentTarget as HTMLInputElement;
+                addUploadFiles(input.files);
+                input.value = "";
               }}
             />
           </label>
         </div>
+        {#if uploadFiles.length > 0}
+          <div class="upload-list">
+            {#each uploadFiles as entry (entry.id)}
+              <div class="upload-row">
+                <span class="upload-filename" title={entry.file.name}>{entry.file.name}</span>
+                <input
+                  type="text"
+                  bind:value={entry.filename}
+                  placeholder="filename.png"
+                  aria-label="Saved filename"
+                />
+                <button
+                  type="button"
+                  class="row-remove"
+                  aria-label="Remove from batch"
+                  onclick={() => removeUploadFile(entry.id)}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            {/each}
+          </div>
+        {/if}
         <div class="dialog-actions">
           <button type="button" class="secondary" onclick={closeDialog}>Cancel</button>
-          <button type="button" onclick={upload} disabled={!uploadFile || saving}>
+          <button type="button" onclick={upload} disabled={uploadFiles.length === 0 || saving}>
             {#if saving}<span class="spin"><Loader2 size={16} /></span>{/if}
-            Upload
+            Upload {uploadFiles.length > 1 ? `${uploadFiles.length} images` : uploadFiles.length === 1 ? "image" : ""}
           </button>
         </div>
       </div>
@@ -792,11 +1080,11 @@
           <span>Name</span>
           <input bind:value={renameValue} />
         </label>
+        <p class="dialog-copy">Queued as a pending change. Hit Publish to commit.</p>
         <div class="dialog-actions">
           <button type="button" class="secondary" onclick={closeDialog}>Cancel</button>
-          <button type="button" onclick={renameSelected} disabled={!renameValue.trim() || saving}>
-            {#if saving}<span class="spin"><Loader2 size={16} /></span>{/if}
-            Rename
+          <button type="button" onclick={queueRename} disabled={!renameValue.trim()}>
+            Queue rename
           </button>
         </div>
       </div>
@@ -838,18 +1126,17 @@
             </button>
           {/each}
         </div>
+        <p class="dialog-copy">Queued as a pending change. Hit Publish to commit.</p>
         <div class="dialog-actions">
           <button type="button" class="secondary" onclick={closeDialog}>Cancel</button>
-          <button type="button" onclick={moveSelected} disabled={saving}>
-            {#if saving}<span class="spin"><Loader2 size={16} /></span>{/if}
-            Move
-          </button>
+          <button type="button" onclick={queueMove}>Queue move</button>
         </div>
       </div>
     </div>
   {/if}
 
   {#if activeDialog === "delete" && deleteTarget}
+    {@const refsForTarget = referencesForNode(deleteTarget)}
     <div class="dialog-backdrop" role="presentation" onclick={(event) => event.target === event.currentTarget && closeDialog()}>
       <div class="media-dialog" role="dialog" aria-modal="true" aria-label="Delete media">
         <header>
@@ -857,25 +1144,33 @@
           <button type="button" aria-label="Close" onclick={closeDialog}><X size={16} /></button>
         </header>
         <p class="dialog-copy">
-          This will delete {pathForNode(deleteTarget)} from the repository. Referenced media is blocked.
+          Queued as a pending change. Hit Publish to remove {pathForNode(deleteTarget)} from the repository.
         </p>
-        {#if blockingRefs}
+        {#if refsForTarget.length > 0}
           <div class="refs warning">
             <strong>Referenced media</strong>
-            <p>This item cannot be deleted while it is used.</p>
-            {#each blockingRefs as ref}
+            <p>This item is used in {refsForTarget.length} place{refsForTarget.length === 1 ? "" : "s"}. Tick force to delete anyway.</p>
+            {#each refsForTarget as ref}
               <a href={`/admin/${ref.collection}/${ref.slug}`}>
                 <Pencil size={14} />
                 {ref.collection}/{ref.slug} · {ref.field} · {ref.count}
               </a>
             {/each}
+            <label class="force-check">
+              <input type="checkbox" bind:checked={forceDelete} />
+              <span>Force delete despite references</span>
+            </label>
           </div>
         {/if}
         <div class="dialog-actions">
           <button type="button" class="secondary" onclick={closeDialog}>Cancel</button>
-          <button type="button" class="danger" onclick={deleteSelected} disabled={saving || Boolean(blockingRefs)}>
-            {#if saving}<span class="spin"><Loader2 size={16} /></span>{/if}
-            Delete
+          <button
+            type="button"
+            class="danger"
+            onclick={queueDelete}
+            disabled={refsForTarget.length > 0 && !forceDelete}
+          >
+            Queue delete
           </button>
         </div>
       </div>
@@ -1318,5 +1613,151 @@
     to {
       transform: rotate(360deg);
     }
+  }
+
+  .pending-bar {
+    background-color: rgba($color-accent-2, 0.25);
+    border: 1px solid $color-accent-1;
+    border-radius: 5px;
+    display: grid;
+    gap: 0.5rem;
+    padding: 0.75rem;
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    strong {
+      color: $color-text;
+      font-size: $fs-sm;
+    }
+  }
+
+  .pending-actions {
+    display: flex;
+    gap: 0.45rem;
+  }
+
+  .pending-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.3rem;
+
+    li {
+      align-items: center;
+      background-color: rgba(244, 249, 225, 0.55);
+      border: 1px solid rgba($color-accent-1, 0.45);
+      border-radius: 4px;
+      display: grid;
+      gap: 0.5rem;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      padding: 0.35rem 0.55rem;
+      font-size: $fs-xs;
+    }
+  }
+
+  .pending-label {
+    color: $color-text;
+    overflow-wrap: anywhere;
+  }
+
+  .badge {
+    background-color: $color-accent-1;
+    border-radius: 3px;
+    color: $color-white;
+    font-size: $fs-xs;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    padding: 0.1rem 0.35rem;
+    text-transform: uppercase;
+
+    &.danger {
+      background-color: $color-error;
+    }
+
+    &.force {
+      background-color: $color-warning;
+      color: $color-text;
+    }
+  }
+
+  .row-remove {
+    background: transparent;
+    border: 0;
+    color: $color-accent-1;
+    padding: 0.2rem 0.3rem;
+
+    &:hover {
+      background-color: rgba($color-accent-1, 0.18);
+      color: $color-text;
+    }
+  }
+
+  .upload-list {
+    display: grid;
+    gap: 0.4rem;
+    max-height: 18rem;
+    overflow-y: auto;
+  }
+
+  .upload-row {
+    align-items: center;
+    background-color: rgba(244, 249, 225, 0.55);
+    border: 1px solid rgba($color-accent-1, 0.45);
+    border-radius: 4px;
+    display: grid;
+    gap: 0.4rem;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto;
+    padding: 0.35rem 0.5rem;
+    font-size: $fs-xs;
+  }
+
+  .upload-filename {
+    color: $color-accent-1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .upload-row input {
+    background-color: var(--admin-paper);
+    border: 1px solid rgba($color-accent-1, 0.5);
+    border-radius: 4px;
+    font-size: $fs-xs;
+    padding: 0.25rem 0.4rem;
+  }
+
+  .force-check {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    color: $color-text;
+    display: flex;
+    flex-direction: row;
+    font-size: $fs-xs;
+    gap: 0.35rem;
+    padding: 0;
+    text-transform: none;
+
+    input {
+      width: auto;
+    }
+  }
+
+  .folder-card.pending,
+  .media-tile.pending {
+    opacity: 0.78;
+  }
+
+  .folder-card.pending-delete,
+  .media-tile.pending-delete {
+    opacity: 0.55;
+    text-decoration: line-through;
   }
 </style>

@@ -8,7 +8,7 @@ import {
   MediaError,
   moveMedia,
   moveMediaFolder,
-  uploadMedia,
+  uploadMediaBatch,
 } from "../../../lib/admin/media";
 
 export const prerender = false;
@@ -78,23 +78,34 @@ export const POST: APIRoute = async ({ request }) => {
     return json({ error: "Expected multipart/form-data." }, 400);
   }
 
-  const file = form.get("file");
-  if (!(file instanceof File)) {
+  const files = form.getAll("file").filter((entry): entry is File => entry instanceof File);
+  if (files.length === 0) {
     return json({ error: "Missing 'file' field." }, 400);
   }
-  if (file.size > MAX_MEDIA_SIZE) {
-    return json({ error: `File too large (max ${MAX_MEDIA_SIZE / 1024 / 1024}MB).` }, 400);
+  const filenames = form.getAll("filename").map((entry) => String(entry ?? ""));
+  for (const file of files) {
+    if (file.size > MAX_MEDIA_SIZE) {
+      return json(
+        { error: `File too large (max ${MAX_MEDIA_SIZE / 1024 / 1024}MB): ${file.name}` },
+        400,
+      );
+    }
   }
 
   try {
-    const result = await uploadMedia({
-      content: Buffer.from(await file.arrayBuffer()),
-      fileName: file.name || "image",
-      type: file.type,
-      size: file.size,
+    const items = await Promise.all(
+      files.map(async (file, index) => ({
+        content: Buffer.from(await file.arrayBuffer()),
+        fileName: file.name || "image",
+        type: file.type,
+        size: file.size,
+        filename: filenames[index] || undefined,
+      })),
+    );
+    const result = await uploadMediaBatch({
+      items,
       root: form.get("root") ?? "images",
       folder: form.get("folder") ?? "",
-      filename: form.get("filename") ?? undefined,
     });
     return json(result);
   } catch (err) {

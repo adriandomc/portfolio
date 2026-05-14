@@ -6,6 +6,8 @@
   import Image from "@tiptap/extension-image";
   import Placeholder from "@tiptap/extension-placeholder";
   import {
+    ArrowDown,
+    ArrowUp,
     Bold,
     Code,
     ImagePlus,
@@ -13,9 +15,11 @@
     Link2,
     List,
     ListOrdered,
+    Plus,
     Quote,
     Save,
     Strikethrough,
+    Trash2,
     X,
   } from "@lucide/svelte";
   import {
@@ -45,6 +49,7 @@
   type PickerTarget =
     | { kind: "bodyImage" }
     | { kind: "blogCover" }
+    | { kind: "projectImage"; index: number }
     | MdxMediaPickerRequest;
 
   let {
@@ -294,6 +299,41 @@
     return Array.isArray(projFm.images) ? projFm.images : [];
   }
 
+  function addProjectImage() {
+    projFm.images = [...projectImages(), { src: "", alt: "" }];
+    markDirty();
+  }
+
+  function removeProjectImage(index: number) {
+    const images = [...projectImages()];
+    images.splice(index, 1);
+    projFm.images = images;
+    markDirty();
+  }
+
+  function moveProjectImage(index: number, delta: -1 | 1) {
+    const images = [...projectImages()];
+    const target = index + delta;
+    if (target < 0 || target >= images.length) return;
+    [images[index], images[target]] = [images[target], images[index]];
+    projFm.images = images;
+    markDirty();
+  }
+
+  function updateProjectImageAlt(index: number, value: string) {
+    const images = [...projectImages()];
+    images[index] = { ...(images[index] ?? { src: "", alt: "" }), alt: value };
+    projFm.images = images;
+    markDirty();
+  }
+
+  function updateProjectImageSrc(index: number, value: string) {
+    const images = [...projectImages()];
+    images[index] = { ...(images[index] ?? { src: "", alt: "" }), src: value };
+    projFm.images = images;
+    markDirty();
+  }
+
   function updateBlockAttrsAt(
     pos: number,
     updater: (attrs: Record<string, unknown>) => Record<string, unknown>,
@@ -319,6 +359,14 @@
       editor?.chain().focus().setImage({ src: path, alt: "" }).run();
     } else if (target.kind === "blogCover") {
       blogFm.image = path;
+      markDirty();
+    } else if (target.kind === "projectImage") {
+      const images = [...projectImages()];
+      images[target.index] = {
+        ...(images[target.index] ?? { src: "", alt: "" }),
+        src: path,
+      };
+      projFm.images = images;
       markDirty();
     } else if (target.kind === "blockFigure") {
       updateBlockAttrsAt(target.pos, (attrs) => ({ ...attrs, src: path }));
@@ -558,24 +606,83 @@
           <div class="project-images">
             <div class="list-title">
               <span>Project images</span>
+              <button type="button" class="ghost-btn" onclick={addProjectImage}>
+                <Plus size={14} />
+                Add image
+              </button>
             </div>
-            <div class="project-gallery" aria-label="Project images preview">
-              {#each projectImages() as image, index}
-                <figure>
+            {#each projectImages() as image, index (index)}
+              <div class="project-image-row">
+                <div class="project-image-thumb">
                   {#if image.src}
                     <img src={image.src} alt={image.alt} loading="lazy" />
                   {:else}
                     <div class="image-placeholder">No image</div>
                   {/if}
-                  <figcaption>
-                    <strong>{index + 1}. {image.alt || "Untitled image"}</strong>
-                    <span>{image.src || "No path"}</span>
-                  </figcaption>
-                </figure>
-              {:else}
-                <p class="muted">No project images configured.</p>
-              {/each}
-            </div>
+                  <span class="index-tag">{index + 1}</span>
+                </div>
+                <div class="project-image-fields">
+                  <label>
+                    <span>Alt</span>
+                    <input
+                      type="text"
+                      value={image.alt}
+                      oninput={(event) =>
+                        updateProjectImageAlt(index, (event.currentTarget as HTMLInputElement).value)}
+                      placeholder="Short description"
+                    />
+                  </label>
+                  <label>
+                    <span>Src</span>
+                    <div class="input-action">
+                      <input
+                        type="text"
+                        value={image.src}
+                        oninput={(event) =>
+                          updateProjectImageSrc(index, (event.currentTarget as HTMLInputElement).value)}
+                        placeholder="/images/projects/..."
+                      />
+                      <button
+                        type="button"
+                        onclick={() => (pickerTarget = { kind: "projectImage", index })}
+                      >
+                        Pick
+                      </button>
+                    </div>
+                  </label>
+                </div>
+                <div class="project-image-controls">
+                  <button
+                    type="button"
+                    class="icon-btn"
+                    aria-label="Move up"
+                    disabled={index === 0}
+                    onclick={() => moveProjectImage(index, -1)}
+                  >
+                    <ArrowUp size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    class="icon-btn"
+                    aria-label="Move down"
+                    disabled={index === projectImages().length - 1}
+                    onclick={() => moveProjectImage(index, 1)}
+                  >
+                    <ArrowDown size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    class="icon-btn danger"
+                    aria-label="Remove image"
+                    onclick={() => removeProjectImage(index)}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            {:else}
+              <p class="muted">No project images yet. Add one to get started.</p>
+            {/each}
           </div>
         {/if}
 
@@ -1585,27 +1692,27 @@
     gap: 0.5rem;
   }
 
-  .project-images,
-  .project-gallery {
+  .project-images {
     display: grid;
-    gap: 0.6rem;
+    gap: 0.55rem;
   }
 
-  .project-gallery {
-    grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
-  }
-
-  .project-gallery figure {
+  .project-image-row {
+    align-items: stretch;
     background-color: rgba(244, 249, 225, 0.55);
     border: 1px solid rgba($color-accent-1, 0.5);
     border-radius: 5px;
     display: grid;
-    gap: 0.4rem;
-    margin: 0;
-    padding: 0.45rem;
+    gap: 0.6rem;
+    grid-template-columns: 5.5rem minmax(0, 1fr) auto;
+    padding: 0.5rem;
   }
 
-  .project-gallery img,
+  .project-image-thumb {
+    position: relative;
+  }
+
+  .project-image-thumb img,
   .image-placeholder {
     aspect-ratio: 4 / 3;
     background-color: var(--admin-paper);
@@ -1623,14 +1730,94 @@
     justify-content: center;
   }
 
-  .project-gallery figcaption {
-    display: grid;
-    gap: 0.2rem;
+  .index-tag {
+    position: absolute;
+    top: 0.2rem;
+    left: 0.2rem;
+    background-color: $color-accent-1;
+    border-radius: 3px;
+    color: $color-white;
     font-size: $fs-xs;
+    font-weight: 800;
+    padding: 0.05rem 0.3rem;
+  }
 
-    span {
+  .project-image-fields {
+    display: grid;
+    gap: 0.4rem;
+    min-width: 0;
+
+    label {
+      display: grid;
+      gap: 0.2rem;
+      font-size: $fs-xs;
+    }
+
+    label > span {
       color: $color-accent-1;
-      overflow-wrap: anywhere;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+  }
+
+  .project-image-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .icon-btn {
+    align-items: center;
+    background-color: rgba(244, 249, 225, 0.4);
+    border: 1px solid rgba($color-accent-1, 0.6);
+    border-radius: 4px;
+    color: $color-text;
+    cursor: pointer;
+    display: inline-flex;
+    justify-content: center;
+    min-height: 1.8rem;
+    min-width: 1.8rem;
+    padding: 0.25rem;
+
+    &:hover:not(:disabled) {
+      background-color: $color-accent-1;
+      color: $color-white;
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.4;
+    }
+
+    &.danger {
+      border-color: $color-error;
+      color: $color-error;
+
+      &:hover:not(:disabled) {
+        background-color: $color-error;
+        color: $color-white;
+      }
+    }
+  }
+
+  .ghost-btn {
+    align-items: center;
+    background-color: transparent;
+    border: 1px dashed $color-accent-1;
+    border-radius: 4px;
+    color: $color-accent-1;
+    cursor: pointer;
+    display: inline-flex;
+    font-family: "JetBrains Mono", monospace;
+    font-size: $fs-xs;
+    font-weight: 800;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+
+    &:hover {
+      background-color: rgba($color-accent-1, 0.12);
+      color: $color-text;
     }
   }
 
