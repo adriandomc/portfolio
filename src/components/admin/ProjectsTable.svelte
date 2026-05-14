@@ -152,6 +152,9 @@
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       initial = snapshot(rows);
       saved = true;
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("admin-staging-changed"));
+      }
     } catch (err) {
       error = err instanceof Error ? err.message : "Save failed.";
     } finally {

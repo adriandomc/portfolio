@@ -22,3 +22,6 @@ pnpm-debug.log*
 
 # jetbrains setting folder
 .idea/
+
+# admin staging area (server-side pending changes buffer)
+.admin-staging/

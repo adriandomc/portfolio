@@ -394,6 +394,7 @@
       saveStatus = "saved";
       dirty = false;
       lastSavedMeta = JSON.stringify({ slug, frontmatter });
+      window.dispatchEvent(new CustomEvent("admin-staging-changed"));
       if (isNew && data.slug) {
         window.location.replace(`/admin/${collection}/${data.slug}`);
       }
@@ -421,6 +422,7 @@
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error ?? `HTTP ${res.status}`);
       }
+      window.dispatchEvent(new CustomEvent("admin-staging-changed"));
       window.location.replace(`/admin/${collection}`);
     } catch (err) {
       saveError = err instanceof Error ? err.message : "Delete failed.";
