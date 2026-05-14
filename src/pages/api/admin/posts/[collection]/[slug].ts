@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import {
   COLLECTIONS,
+  getPost,
   removePost,
   savePost,
   slugify,
@@ -128,6 +129,20 @@ export const PUT: APIRoute = async ({ params, request }) => {
       err instanceof Error ? err.message : "Failed to serialize content.",
       500,
     );
+  }
+
+  if (col === "projects" && !payload.isNew) {
+    try {
+      const existing = await getPost("projects", chosenSlug);
+      if (existing) {
+        const existingProj = existing.frontmatter as ProjectFrontmatter;
+        const proj = fmResult.value as ProjectFrontmatter;
+        proj.order = existingProj.order;
+        proj.featured = Boolean(existingProj.featured);
+      }
+    } catch (err) {
+      console.warn("Failed to preserve project order/featured:", err);
+    }
   }
 
   try {

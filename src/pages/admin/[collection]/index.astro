@@ -3,6 +3,7 @@ export const prerender = false;
 
 import AdminLayout from "../../../layouts/AdminLayout.astro";
 import ContentTable from "../../../components/admin/ContentTable.svelte";
+import ProjectsTable from "../../../components/admin/ProjectsTable.svelte";
 import { COLLECTIONS, listPosts, type Collection } from "../../../lib/admin/posts";
 
 const { collection } = Astro.params;
@@ -28,6 +29,8 @@ const labels: Record<Collection, string> = {
 <AdminLayout title={labels[col]}>
   {loadError ? (
     <p class="error">{loadError}</p>
+  ) : col === "projects" ? (
+    <ProjectsTable client:load posts={posts} />
   ) : (
     <ContentTable client:load collection={col} label={labels[col]} posts={posts} />
   )}

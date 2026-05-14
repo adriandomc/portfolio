@@ -559,29 +559,18 @@
             <span>External URL</span>
             <input type="text" bind:value={projFm.href} oninput={markDirty} placeholder="https://..." />
           </label>
-          <div class="split">
-            <label>
-              <span>Order</span>
-              <input
-                type="number"
-                value={projFm.order ?? ""}
-                oninput={(event) => {
-                  const value = (event.currentTarget as HTMLInputElement).value;
-                  projFm.order = value === "" ? undefined : Number(value);
-                  markDirty();
-                }}
-              />
-            </label>
-            <label class="check">
-              <input type="checkbox" bind:checked={projFm.featured} onchange={markDirty} />
-              <span>Featured</span>
-            </label>
-          </div>
           <div class="hint-card">
             <strong>Project images</strong>
             <p>
               Edit the first <code>ImageCarousel</code> block in the body — the project's
               images and listing thumbnail are derived from it on save.
+            </p>
+          </div>
+          <div class="hint-card">
+            <strong>Order &amp; Featured</strong>
+            <p>
+              Manage from <a href="/admin/projects">/admin/projects</a>: drag rows to reorder
+              and tick the Featured checkbox.
             </p>
           </div>
         {/if}

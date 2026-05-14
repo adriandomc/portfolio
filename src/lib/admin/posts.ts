@@ -1,5 +1,5 @@
 import matter from "gray-matter";
-import { listDir, getFile, commitFile, deleteFile } from "./github";
+import { commitChanges, listDir, getFile, commitFile, deleteFile, type RepoChange } from "./github";
 
 export type Collection = "blog" | "projects";
 
@@ -46,6 +46,9 @@ export interface PostSummary {
   draft: boolean;
   date?: string;
   tags: string[];
+  featured?: boolean;
+  order?: number;
+  cover?: string;
 }
 
 export interface PostDetail extends PostSummary {
@@ -175,7 +178,13 @@ function summaryFromFrontmatter(
   if (collection === "blog") {
     return { ...base, date: (fm as BlogFrontmatter).date };
   }
-  return base;
+  const proj = fm as ProjectFrontmatter;
+  return {
+    ...base,
+    featured: proj.featured,
+    order: proj.order,
+    cover: proj.images?.[0]?.src,
+  };
 }
 
 export async function listPosts(
@@ -197,7 +206,12 @@ export async function listPosts(
   if (collection === "blog") {
     out.sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
   } else {
-    out.sort((a, b) => a.title.localeCompare(b.title));
+    out.sort((a, b) => {
+      const orderA = a.order ?? Number.POSITIVE_INFINITY;
+      const orderB = b.order ?? Number.POSITIVE_INFINITY;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.title.localeCompare(b.title);
+    });
   }
   return out;
 }
@@ -273,4 +287,54 @@ export async function removePost(args: {
     sha: args.sha,
     message: `content(${args.collection}): delete ${args.slug}`,
   });
+}
+
+export async function updateProjectsOrdering(args: {
+  updates: Array<{ slug: string; order: number; featured: boolean }>;
+}): Promise<{ commitSha: string; updated: number }> {
+  if (!Array.isArray(args.updates) || args.updates.length === 0) {
+    throw new Error("No project updates provided.");
+  }
+  const seen = new Set<string>();
+  const changes: RepoChange[] = [];
+  for (const update of args.updates) {
+    const slug = String(update.slug ?? "");
+    if (!slug) throw new Error("Missing slug in project update.");
+    if (seen.has(slug)) throw new Error(`Duplicate slug in updates: ${slug}`);
+    seen.add(slug);
+
+    const filePath = pathFor("projects", slug);
+    const file = await getFile(filePath);
+    if (!file) throw new Error(`Project not found: ${slug}`);
+
+    const parsed = matter(file.content);
+    const data = parsed.data as Record<string, unknown>;
+    const nextOrder = Number(update.order);
+    if (!Number.isFinite(nextOrder)) {
+      throw new Error(`Invalid order for ${slug}.`);
+    }
+    const nextFeatured = Boolean(update.featured);
+
+    if (data.order === nextOrder && data.featured === nextFeatured) {
+      continue;
+    }
+
+    data.order = nextOrder;
+    data.featured = nextFeatured;
+    const nextContent = matter.stringify(parsed.content, data);
+    if (nextContent === file.content) continue;
+
+    changes.push({ path: filePath, content: nextContent, encoding: "utf-8" });
+  }
+
+  if (changes.length === 0) {
+    return { commitSha: "", updated: 0 };
+  }
+
+  const message =
+    changes.length === 1
+      ? `content(projects): reorder ${changes.length} project`
+      : `content(projects): reorder ${changes.length} projects`;
+  const result = await commitChanges({ changes, message });
+  return { commitSha: result.commitSha, updated: changes.length };
 }
