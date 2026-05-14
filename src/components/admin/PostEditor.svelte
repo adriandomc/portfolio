@@ -6,8 +6,6 @@
   import Image from "@tiptap/extension-image";
   import Placeholder from "@tiptap/extension-placeholder";
   import {
-    ArrowDown,
-    ArrowUp,
     Bold,
     Code,
     ImagePlus,
@@ -15,11 +13,9 @@
     Link2,
     List,
     ListOrdered,
-    Plus,
     Quote,
     Save,
     Strikethrough,
-    Trash2,
     X,
   } from "@lucide/svelte";
   import {
@@ -49,7 +45,6 @@
   type PickerTarget =
     | { kind: "bodyImage" }
     | { kind: "blogCover" }
-    | { kind: "projectImage"; index: number }
     | MdxMediaPickerRequest;
 
   let {
@@ -295,43 +290,27 @@
     markDirty();
   }
 
-  function projectImages() {
-    return Array.isArray(projFm.images) ? projFm.images : [];
-  }
-
-  function addProjectImage() {
-    projFm.images = [...projectImages(), { src: "", alt: "" }];
-    markDirty();
-  }
-
-  function removeProjectImage(index: number) {
-    const images = [...projectImages()];
-    images.splice(index, 1);
-    projFm.images = images;
-    markDirty();
-  }
-
-  function moveProjectImage(index: number, delta: -1 | 1) {
-    const images = [...projectImages()];
-    const target = index + delta;
-    if (target < 0 || target >= images.length) return;
-    [images[index], images[target]] = [images[target], images[index]];
-    projFm.images = images;
-    markDirty();
-  }
-
-  function updateProjectImageAlt(index: number, value: string) {
-    const images = [...projectImages()];
-    images[index] = { ...(images[index] ?? { src: "", alt: "" }), alt: value };
-    projFm.images = images;
-    markDirty();
-  }
-
-  function updateProjectImageSrc(index: number, value: string) {
-    const images = [...projectImages()];
-    images[index] = { ...(images[index] ?? { src: "", alt: "" }), src: value };
-    projFm.images = images;
-    markDirty();
+  function deriveProjectImagesFromDoc(doc: TiptapDoc): Array<{ src: string; alt: string }> {
+    const stack: Array<TiptapDoc["content"][number]> = [...doc.content];
+    while (stack.length > 0) {
+      const node = stack.shift()!;
+      if (node.type === "mdxImageCarousel") {
+        const images = node.attrs?.images;
+        if (!Array.isArray(images)) return [];
+        return images
+          .filter(
+            (entry): entry is { src?: unknown; alt?: unknown } =>
+              Boolean(entry) && typeof entry === "object",
+          )
+          .map((entry) => ({
+            src: typeof entry.src === "string" ? entry.src : "",
+            alt: typeof entry.alt === "string" ? entry.alt : "",
+          }))
+          .filter((entry) => entry.src);
+      }
+      if (Array.isArray(node.content)) stack.unshift(...node.content);
+    }
+    return [];
   }
 
   function updateBlockAttrsAt(
@@ -359,14 +338,6 @@
       editor?.chain().focus().setImage({ src: path, alt: "" }).run();
     } else if (target.kind === "blogCover") {
       blogFm.image = path;
-      markDirty();
-    } else if (target.kind === "projectImage") {
-      const images = [...projectImages()];
-      images[target.index] = {
-        ...(images[target.index] ?? { src: "", alt: "" }),
-        src: path,
-      };
-      projFm.images = images;
       markDirty();
     } else if (target.kind === "blockFigure") {
       updateBlockAttrsAt(target.pos, (attrs) => ({ ...attrs, src: path }));
@@ -400,6 +371,9 @@
     saveError = null;
     saveStatus = "idle";
     const doc = editor.getJSON() as TiptapDoc;
+    if (collection === "projects") {
+      projFm.images = deriveProjectImagesFromDoc(doc);
+    }
     try {
       const res = await fetch(`/api/admin/posts/${collection}/${slug}`, {
         method: "PUT",
@@ -603,86 +577,12 @@
               <span>Featured</span>
             </label>
           </div>
-          <div class="project-images">
-            <div class="list-title">
-              <span>Project images</span>
-              <button type="button" class="ghost-btn" onclick={addProjectImage}>
-                <Plus size={14} />
-                Add image
-              </button>
-            </div>
-            {#each projectImages() as image, index (index)}
-              <div class="project-image-row">
-                <div class="project-image-thumb">
-                  {#if image.src}
-                    <img src={image.src} alt={image.alt} loading="lazy" />
-                  {:else}
-                    <div class="image-placeholder">No image</div>
-                  {/if}
-                  <span class="index-tag">{index + 1}</span>
-                </div>
-                <div class="project-image-fields">
-                  <label>
-                    <span>Alt</span>
-                    <input
-                      type="text"
-                      value={image.alt}
-                      oninput={(event) =>
-                        updateProjectImageAlt(index, (event.currentTarget as HTMLInputElement).value)}
-                      placeholder="Short description"
-                    />
-                  </label>
-                  <label>
-                    <span>Src</span>
-                    <div class="input-action">
-                      <input
-                        type="text"
-                        value={image.src}
-                        oninput={(event) =>
-                          updateProjectImageSrc(index, (event.currentTarget as HTMLInputElement).value)}
-                        placeholder="/images/projects/..."
-                      />
-                      <button
-                        type="button"
-                        onclick={() => (pickerTarget = { kind: "projectImage", index })}
-                      >
-                        Pick
-                      </button>
-                    </div>
-                  </label>
-                </div>
-                <div class="project-image-controls">
-                  <button
-                    type="button"
-                    class="icon-btn"
-                    aria-label="Move up"
-                    disabled={index === 0}
-                    onclick={() => moveProjectImage(index, -1)}
-                  >
-                    <ArrowUp size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    class="icon-btn"
-                    aria-label="Move down"
-                    disabled={index === projectImages().length - 1}
-                    onclick={() => moveProjectImage(index, 1)}
-                  >
-                    <ArrowDown size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    class="icon-btn danger"
-                    aria-label="Remove image"
-                    onclick={() => removeProjectImage(index)}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-            {:else}
-              <p class="muted">No project images yet. Add one to get started.</p>
-            {/each}
+          <div class="hint-card">
+            <strong>Project images</strong>
+            <p>
+              Edit the first <code>ImageCarousel</code> block in the body — the project's
+              images and listing thumbnail are derived from it on save.
+            </p>
           </div>
         {/if}
 
@@ -1692,132 +1592,29 @@
     gap: 0.5rem;
   }
 
-  .project-images {
-    display: grid;
-    gap: 0.55rem;
-  }
-
-  .project-image-row {
-    align-items: stretch;
+  .hint-card {
     background-color: rgba(244, 249, 225, 0.55);
     border: 1px solid rgba($color-accent-1, 0.5);
     border-radius: 5px;
     display: grid;
-    gap: 0.6rem;
-    grid-template-columns: 5.5rem minmax(0, 1fr) auto;
-    padding: 0.5rem;
-  }
-
-  .project-image-thumb {
-    position: relative;
-  }
-
-  .project-image-thumb img,
-  .image-placeholder {
-    aspect-ratio: 4 / 3;
-    background-color: var(--admin-paper);
-    border: 1px solid rgba($color-accent-1, 0.55);
-    border-radius: 4px;
-    object-fit: contain;
-    width: 100%;
-  }
-
-  .image-placeholder {
-    align-items: center;
-    color: $color-accent-1;
-    display: flex;
-    font-size: $fs-xs;
-    justify-content: center;
-  }
-
-  .index-tag {
-    position: absolute;
-    top: 0.2rem;
-    left: 0.2rem;
-    background-color: $color-accent-1;
-    border-radius: 3px;
-    color: $color-white;
-    font-size: $fs-xs;
-    font-weight: 800;
-    padding: 0.05rem 0.3rem;
-  }
-
-  .project-image-fields {
-    display: grid;
-    gap: 0.4rem;
-    min-width: 0;
-
-    label {
-      display: grid;
-      gap: 0.2rem;
-      font-size: $fs-xs;
-    }
-
-    label > span {
-      color: $color-accent-1;
-      font-weight: 800;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
-  }
-
-  .project-image-controls {
-    display: flex;
-    flex-direction: column;
     gap: 0.3rem;
-  }
-
-  .icon-btn {
-    align-items: center;
-    background-color: rgba(244, 249, 225, 0.4);
-    border: 1px solid rgba($color-accent-1, 0.6);
-    border-radius: 4px;
-    color: $color-text;
-    cursor: pointer;
-    display: inline-flex;
-    justify-content: center;
-    min-height: 1.8rem;
-    min-width: 1.8rem;
-    padding: 0.25rem;
-
-    &:hover:not(:disabled) {
-      background-color: $color-accent-1;
-      color: $color-white;
-    }
-
-    &:disabled {
-      cursor: not-allowed;
-      opacity: 0.4;
-    }
-
-    &.danger {
-      border-color: $color-error;
-      color: $color-error;
-
-      &:hover:not(:disabled) {
-        background-color: $color-error;
-        color: $color-white;
-      }
-    }
-  }
-
-  .ghost-btn {
-    align-items: center;
-    background-color: transparent;
-    border: 1px dashed $color-accent-1;
-    border-radius: 4px;
-    color: $color-accent-1;
-    cursor: pointer;
-    display: inline-flex;
-    font-family: "JetBrains Mono", monospace;
+    padding: 0.6rem 0.75rem;
     font-size: $fs-xs;
-    font-weight: 800;
-    gap: 0.25rem;
-    padding: 0.25rem 0.5rem;
 
-    &:hover {
-      background-color: rgba($color-accent-1, 0.12);
+    strong {
       color: $color-text;
+    }
+
+    p {
+      color: $color-accent-1;
+      margin: 0;
+    }
+
+    code {
+      background-color: rgba($color-accent-1, 0.18);
+      border-radius: 3px;
+      font-family: "JetBrains Mono", monospace;
+      padding: 0 0.2rem;
     }
   }
 
