@@ -12,4 +12,34 @@ featured: true
 order: 3
 draft: false
 ---
-Hello
+import ImageCarousel from '/src/components/ImageCarousel.astro';
+
+<ImageCarousel
+  images={[
+  {
+    "src": "/images/projects/portfolio/portfolio-home.png",
+    "alt": "Portfolio homepage"
+  },
+  {
+    "src": "/images/projects/portfolio/admin-home.png",
+    "alt": "Admin CRM-like dashboard"
+  },
+  {
+    "src": "/images/projects/portfolio/admin-blogs.png",
+    "alt": "Admin blog posts manager"
+  },
+  {
+    "src": "/images/projects/portfolio/admin-new-post.png",
+    "alt": "Admin blog post editor"
+  },
+  {
+    "src": "/images/projects/portfolio/admin-media.png",
+    "alt": "Admin media drive for images"
+  }
+]}
+  maxWidth="48rem"
+  aspectRatio="16 / 10"
+  objectFit="contain"
+>
+  Admin blog posts manager
+</ImageCarousel>
