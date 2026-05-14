@@ -147,6 +147,10 @@
     return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   }
 
+  function displayPath(root: MediaRoot, folder: string): string {
+    return folder ? `/${root}/${folder}` : `/${root}`;
+  }
+
   function loadPending() {
     if (typeof window === "undefined") return;
     try {
@@ -976,15 +980,9 @@
           <button type="button" aria-label="Close" onclick={closeDialog}><X size={16} /></button>
         </header>
         <div class="field-grid">
-          <label>
-            <span>Root</span>
-            <select bind:value={uploadRoot}>
-              <option value="images">/images</option>
-            </select>
-          </label>
-          <label>
-            <span>Folder</span>
-            <input bind:value={uploadFolder} placeholder="projects/voltalfa" />
+          <label class="path-readout">
+            <span>Path</span>
+            <code>{displayPath(uploadRoot, uploadFolder)}</code>
           </label>
           <label class="file-input">
             <ImagePlus size={15} />
@@ -1043,15 +1041,9 @@
           <button type="button" aria-label="Close" onclick={closeDialog}><X size={16} /></button>
         </header>
         <div class="field-grid">
-          <label>
-            <span>Root</span>
-            <select bind:value={newFolderRoot}>
-              <option value="images">/images</option>
-            </select>
-          </label>
-          <label>
-            <span>Parent</span>
-            <input bind:value={newFolderParent} placeholder="projects" />
+          <label class="path-readout">
+            <span>Path</span>
+            <code>{displayPath(newFolderRoot, newFolderParent)}</code>
           </label>
           <label>
             <span>Name</span>
@@ -1099,15 +1091,9 @@
           <button type="button" aria-label="Close" onclick={closeDialog}><X size={16} /></button>
         </header>
         <div class="field-grid">
-          <label>
-            <span>Root</span>
-            <select bind:value={moveRoot}>
-              <option value="images">/images</option>
-            </select>
-          </label>
-          <label>
-            <span>Destination</span>
-            <input bind:value={moveFolder} placeholder="projects" />
+          <label class="path-readout">
+            <span>Moving to</span>
+            <code>{displayPath(moveRoot, moveFolder)}</code>
           </label>
         </div>
         <div class="destination-list">
@@ -1747,6 +1733,26 @@
 
     input {
       width: auto;
+    }
+  }
+
+  .path-readout {
+    align-items: center;
+    background-color: var(--admin-paper);
+    border: 1px solid rgba($color-accent-1, 0.6);
+    border-radius: 5px;
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.5rem 0.65rem;
+
+    code {
+      background: transparent;
+      color: $color-text;
+      flex: 1;
+      font-family: "JetBrains Mono", monospace;
+      font-size: $fs-sm;
+      overflow-wrap: anywhere;
+      text-transform: none;
     }
   }
 
