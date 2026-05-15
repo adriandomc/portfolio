@@ -253,12 +253,26 @@ export async function discardTransaction(transactionId: string): Promise<boolean
   });
 }
 
+async function wipeContents(): Promise<void> {
+  await ensureDirs();
+  let entries: Array<{ name: string }> = [];
+  try {
+    entries = await fs.readdir(stagingDir(), { withFileTypes: true });
+  } catch {
+    return;
+  }
+  await Promise.all(
+    entries.map(async (entry) => {
+      const target = path.join(stagingDir(), entry.name);
+      await fs.rm(target, { recursive: true, force: true });
+    }),
+  );
+  await ensureDirs();
+  await writeManifest({ version: 1, transactions: [] });
+}
+
 export async function discardAll(): Promise<void> {
-  return withLock(async () => {
-    await fs.rm(stagingDir(), { recursive: true, force: true });
-    await ensureDirs();
-    await writeManifest({ version: 1, transactions: [] });
-  });
+  return withLock(wipeContents);
 }
 
 export async function buildPublishChanges(): Promise<RepoChange[]> {
@@ -282,9 +296,5 @@ export async function buildPublishChanges(): Promise<RepoChange[]> {
 }
 
 export async function clearStagingAfterPublish(): Promise<void> {
-  return withLock(async () => {
-    await fs.rm(stagingDir(), { recursive: true, force: true });
-    await ensureDirs();
-    await writeManifest({ version: 1, transactions: [] });
-  });
+  return withLock(wipeContents);
 }
