@@ -4,7 +4,11 @@ import {
   clearStagingAfterPublish,
   getStagingDiff,
 } from "../../../../lib/admin/staging";
-import { commitChangesUpstream } from "../../../../lib/admin/github-upstream";
+import {
+  commitChangesUpstream,
+  getBinaryFileUpstream,
+  type RepoChange,
+} from "../../../../lib/admin/github-upstream";
 
 export const prerender = false;
 
@@ -13,6 +17,29 @@ function json(data: unknown, status = 200): Response {
     status,
     headers: { "content-type": "application/json" },
   });
+}
+
+async function isAlreadyApplied(changes: RepoChange[]): Promise<boolean> {
+  const checks = await Promise.all(
+    changes.map(async (change) => {
+      const existing = await getBinaryFileUpstream(change.path);
+      if ("delete" in change && change.delete) {
+        return existing === null;
+      }
+      if (!existing) return false;
+      const encoding = change.encoding ?? "utf-8";
+      const staged =
+        encoding === "base64"
+          ? typeof change.content === "string"
+            ? Buffer.from(change.content, "base64")
+            : change.content
+          : typeof change.content === "string"
+            ? Buffer.from(change.content, "utf-8")
+            : change.content;
+      return existing.content.equals(staged);
+    }),
+  );
+  return checks.every(Boolean);
 }
 
 function summaryMessage(diff: Awaited<ReturnType<typeof getStagingDiff>>): string {
@@ -58,6 +85,14 @@ export const POST: APIRoute = async ({ request }) => {
     const changes = await buildPublishChanges();
     if (changes.length === 0) {
       return json({ error: "Nothing to publish." }, 400);
+    }
+    if (await isAlreadyApplied(changes)) {
+      await clearStagingAfterPublish();
+      return json({
+        commitSha: "already-applied",
+        published: 0,
+        skipped: true,
+      });
     }
     const message = payload.message?.trim() || summaryMessage(diff);
     const result = await commitChangesUpstream({ changes, message });
