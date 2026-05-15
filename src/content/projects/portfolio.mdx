@@ -4,21 +4,21 @@ description: >-
   My professional portfolio, where I showcase my job experience, blog posts and
   projects I've worked on. Features a CRM-like admin dashboard to create posts,
   manage media files and a custom text editor.
+images:
+  - src: /images/projects/portfolio/portfolio-home.png
+    alt: Portfolio homepage
+  - src: /images/projects/portfolio/admin-home.png
+    alt: Admin CRM-like dashboard
+  - src: /images/projects/portfolio/admin-blogs.png
+    alt: Admin blog posts manager
+  - src: /images/projects/portfolio/admin-new-post.png
+    alt: Admin blog post editor
+  - src: /images/projects/portfolio/admin-media.png
+    alt: Admin media drive for images
 href: 'https://portfolio.adriandomc.com'
 tags:
   - Typescript
   - Astro
-images:
-  - src: "/images/projects/portfolio/portfolio-home.png"
-    alt: "Portfolio homepage"
-  - src: "/images/projects/portfolio/admin-home.png"
-    alt: "Admin CRM-like dashboard"
-  - src: "/images/projects/portfolio/admin-blogs.png"
-    alt: "Admin blog posts manager"
-  - src: "/images/projects/portfolio/admin-new-post.png"
-    alt: "Admin blog post editor"
-  - src: "/images/projects/portfolio/admin-media.png"
-    alt: "Admin media drive for images"
 featured: true
 order: 3
 draft: false
@@ -54,3 +54,9 @@ import ImageCarousel from '/src/components/ImageCarousel.astro';
 >
   Admin blog posts manager
 </ImageCarousel>
+
+While this may seem like your common, everyday portfolio website, there is some interesting stuff under the hood. The public website is published as an static site using Astro and there are some components that are rendered using hydration and Javascript islands (such as the image carousel). There is also an admin dashboard where I am able to create/edit the posts of this website, also manage the media (images, files, etc.), which allows me to blog-on-the-go!
+
+## The Admin Experience
+
+The ADC CRM® with ADC-UI® system design!
