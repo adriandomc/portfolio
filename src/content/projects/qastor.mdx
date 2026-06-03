@@ -64,16 +64,19 @@ Currently, it features the following:
 
 ## Try it out
 
-You can install it from a readily available binary from the Releases page of this project's repo: [https://github.com/adriandomc/qastor/releases/](https://github.com/adriandomc/qastor/releases/tag/v0.1.3)
+You can install it from a readily available binary from the Releases page of this project's repo: [https://github.com/adriandomc/qastor/releases](https://github.com/adriandomc/qastor/releases)
 
 Or you can build it from source (which is the recommended way, as Qastor is still in development) following these steps:
 
 ### Pre-requisites
 
-You need to have Rust, Deno and Node.js installed on your machine. You can follow the README guide for further guidance.
+You need to have Rust, Deno and Node.js installed on your machine. You can follow the [README](https://github.com/adriandomc/qastor/blob/main/README.md) guide for further information.
 
 ### Building from source
 
 ```bash
 git clone https://github.com/adriandomc/qastor.git
+cd qastor
+deno install
+deno task build tauri
 ```
