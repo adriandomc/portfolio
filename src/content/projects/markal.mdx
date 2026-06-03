@@ -3,14 +3,32 @@ title: Markal
 description: >-
   An open-source, privacy-first productivity tool for creating interactive and
   collaborative calendars. Made using Lit, Astro, Typescript and WebRTC.
+images:
+  - src: /images/projects/markal/markal-app.png
+    alt: Markal app
+  - src: /images/projects/markal/markal-app.png
+    alt: ''
 href: 'https://markal.app'
-featured: false
-draft: true
+featured: true
+order: 2
+draft: false
 ---
 import ImageCarousel from '/src/components/ImageCarousel.astro';
 
 <ImageCarousel
+  images={[
+  {
+    "src": "/images/projects/markal/markal-app.png",
+    "alt": "Markal app"
+  },
+  {
+    "src": "/images/projects/markal/markal-app.png",
+    "alt": ""
+  }
+]}
   maxWidth="48rem"
   aspectRatio="16 / 10"
   objectFit="contain"
-/>
+>
+  Markal app
+</ImageCarousel>
