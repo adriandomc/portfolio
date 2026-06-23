@@ -15,6 +15,7 @@
     ListOrdered,
     Quote,
     Save,
+    SquareCode,
     Strikethrough,
     X,
   } from "@lucide/svelte";
@@ -111,8 +112,12 @@
   onMount(() => {
     let cancelled = false;
     void setupEditor();
+    window.addEventListener("keydown", handleShortcuts);
+    window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
       cancelled = true;
+      window.removeEventListener("keydown", handleShortcuts);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
     };
 
     async function setupEditor() {
@@ -158,9 +163,23 @@
     }
   });
 
+  let confirmDeleteTimer: ReturnType<typeof setTimeout> | null = null;
+
   onDestroy(() => {
     editor?.destroy();
+    if (confirmDeleteTimer) clearTimeout(confirmDeleteTimer);
   });
+
+  function handleShortcuts(event: KeyboardEvent) {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+      event.preventDefault();
+      if (!saving) void save();
+    }
+  }
+
+  function handleBeforeUnload(event: BeforeUnloadEvent) {
+    if (dirty) event.preventDefault();
+  }
 
   function slugify(value: string): string {
     return value
@@ -233,8 +252,18 @@
         .setLink({ href: linkUrl.trim() })
         .run();
     }
-    linkOpen = false;
+    closeLinkDialog();
     markDirty();
+  }
+
+  function closeLinkDialog() {
+    linkOpen = false;
+    linkUrl = "";
+  }
+
+  function autofocus(node: HTMLInputElement) {
+    node.focus();
+    node.select();
   }
 
   function insertCustomBlock(specName: string) {
@@ -409,7 +438,17 @@
   async function deletePost() {
     if (!confirmingDelete) {
       confirmingDelete = true;
+      // Auto-disarm so a stale confirmation can't delete on a later stray click.
+      if (confirmDeleteTimer) clearTimeout(confirmDeleteTimer);
+      confirmDeleteTimer = setTimeout(() => {
+        confirmingDelete = false;
+        confirmDeleteTimer = null;
+      }, 4000);
       return;
+    }
+    if (confirmDeleteTimer) {
+      clearTimeout(confirmDeleteTimer);
+      confirmDeleteTimer = null;
     }
     saving = true;
     try {
@@ -437,7 +476,7 @@
 <section class="editor-workspace">
   <header class="editor-topbar">
     <a href={`/admin/${collection}`}>/{collection}</a>
-    <div class="toolbar" role="toolbar">
+    <div class="toolbar" role="toolbar" aria-label="Formatting">
       <select
         aria-label="Block type"
         value={currentBlockType()}
@@ -470,7 +509,7 @@
         <Quote size={16} />
       </button>
       <button type="button" class:active={isActive("codeBlock")} onclick={() => exec(() => editor!.chain().focus().toggleCodeBlock({ language: "text" }).run())} aria-label="Code block">
-        <Code size={16} />
+        <SquareCode size={16} />
       </button>
       <span class="sep"></span>
       <button type="button" class:active={isActive("link")} onclick={openLinkDialog} aria-label="Link">
@@ -497,12 +536,9 @@
 
   <div class="editor-grid">
     <main class="canvas-shell">
-      <div
-        class="editor-area"
-        bind:this={editorEl}
-        role="textbox"
-        tabindex="0"
-      ></div>
+      <!-- Tiptap mounts its own focusable contenteditable inside this wrapper,
+           so the wrapper must not also claim a textbox role / tab stop. -->
+      <div class="editor-area" bind:this={editorEl}></div>
     </main>
 
     <aside class="inspector">
@@ -588,7 +624,7 @@
   <div class="bottom-actions">
     <button type="button" class="save-btn" onclick={save} disabled={saving}>
       <Save size={16} />
-      {saving ? "Saving..." : isNew ? "Create post" : "Save"}
+      {saving ? "Saving..." : isNew ? "Create" : "Save"}
     </button>
     {#if !isNew}
       <button type="button" class="danger" onclick={deletePost} disabled={saving}>
@@ -618,12 +654,25 @@
 {/if}
 
 {#if linkOpen}
-  <div class="dialog-backdrop" role="presentation" onclick={(event) => event.target === event.currentTarget && (linkOpen = false)}>
+  <div class="dialog-backdrop" role="presentation" onclick={(event) => event.target === event.currentTarget && closeLinkDialog()}>
     <div class="link-dialog" role="dialog" aria-modal="true" aria-label="Edit link">
       <h2>Link</h2>
-      <input bind:value={linkUrl} placeholder="https://..." />
+      <input
+        use:autofocus
+        bind:value={linkUrl}
+        placeholder="https://..."
+        onkeydown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            applyLink();
+          } else if (event.key === "Escape") {
+            event.preventDefault();
+            closeLinkDialog();
+          }
+        }}
+      />
       <div>
-        <button type="button" onclick={() => (linkOpen = false)}>Cancel</button>
+        <button type="button" onclick={closeLinkDialog}>Cancel</button>
         <button type="button" onclick={applyLink}>Apply</button>
       </div>
     </div>
