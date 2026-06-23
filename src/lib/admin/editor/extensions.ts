@@ -785,7 +785,17 @@ function componentNodeView(
       const index = Number(headerIndex);
       const headers = effectiveHeaders(currentNode.attrs.headers);
       const oldHeader = headers[index];
-      const nextHeader = target.value || oldHeader;
+      const typed = target.value || oldHeader;
+      // Row data is keyed by header label, so a duplicate name would merge two
+      // columns and silently drop a column's data. Keep the typed text but
+      // suffix it until it is unique among the other columns.
+      let nextHeader = typed;
+      const others = headers.filter((_, itemIndex) => itemIndex !== index);
+      if (others.includes(nextHeader)) {
+        let suffix = 2;
+        while (others.includes(`${typed} ${suffix}`)) suffix += 1;
+        nextHeader = `${typed} ${suffix}`;
+      }
       headers[index] = nextHeader;
       const rows = effectiveRows(currentNode.attrs.data, headers).map((row) => {
         if (oldHeader === nextHeader) return row;

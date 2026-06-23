@@ -6,7 +6,13 @@ interface SerializeContext {
 }
 
 function escapeText(s: string): string {
-  return s.replace(/([\\`*_\[\]])/g, "\\$1");
+  // Escape every markdown/MDX/GFM-significant character so literal text typed
+  // in the editor survives a full round-trip. `<`/`{` would otherwise be parsed
+  // as JSX/expressions, a leading `>` as a blockquote, and `~`/`~~` as
+  // strikethrough. All are ASCII punctuation, so remark decodes `\<` -> `<` etc.
+  // back to literal text on the next load. Keep `\\` first so it is escaped
+  // before the characters it would otherwise duplicate.
+  return s.replace(/([\\`*_\[\]<>{}~])/g, "\\$1");
 }
 
 function serializeMarks(node: TiptapNode): string {
@@ -70,7 +76,7 @@ function serializeInline(nodes: TiptapNode[] | undefined): string {
 function indentBlock(text: string, prefix: string): string {
   return text
     .split("\n")
-    .map((line, idx) => (idx === 0 ? prefix + line : prefix + line))
+    .map((line) => prefix + line)
     .join("\n");
 }
 
@@ -191,9 +197,7 @@ function serializeBlock(node: TiptapNode, ctx: SerializeContext): string {
 
 export function tiptapToMdx(doc: TiptapDoc): string {
   const ctx: SerializeContext = { usedComponents: new Set() };
-  const blocks = doc.content
-    .map((block) => serializeBlock(block, ctx))
-    .filter((b) => b.length > 0 || b === "");
+  const blocks = doc.content.map((block) => serializeBlock(block, ctx));
   const body = blocks.join("\n\n").trim();
 
   const imports = [...ctx.usedComponents]
