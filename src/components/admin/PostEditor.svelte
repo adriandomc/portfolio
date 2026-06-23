@@ -15,6 +15,7 @@
     ListOrdered,
     Quote,
     Save,
+    SlidersHorizontal,
     SquareCode,
     Strikethrough,
     X,
@@ -95,6 +96,7 @@
   let linkOpen = $state(false);
   let linkUrl = $state("");
   let tagDraft = $state("");
+  let inspectorOpen = $state(false); // mobile-only frontmatter drawer
 
   const blogFm = $derived(frontmatter as BlogFrontmatter);
   const projFm = $derived(frontmatter as ProjectFrontmatter);
@@ -174,7 +176,17 @@
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
       event.preventDefault();
       if (!saving) void save();
+    } else if (event.key === "Escape" && inspectorOpen) {
+      inspectorOpen = false;
     }
+  }
+
+  function openInspector() {
+    inspectorOpen = true;
+  }
+
+  function closeInspector() {
+    inspectorOpen = false;
   }
 
   function handleBeforeUnload(event: BeforeUnloadEvent) {
@@ -541,7 +553,13 @@
       <div class="editor-area" bind:this={editorEl}></div>
     </main>
 
-    <aside class="inspector">
+    <aside class="inspector" class:is-open={inspectorOpen} id="post-settings" aria-label="Post settings">
+      <div class="inspector-drawer-head">
+        <span>Post settings</span>
+        <button type="button" class="drawer-close" onclick={closeInspector} aria-label="Close settings">
+          <X size={18} />
+        </button>
+      </div>
       <section class="panel">
         <p class="eyebrow">Frontmatter</p>
         <label>
@@ -638,7 +656,23 @@
       <span class="error-text">{saveError}</span>
     {/if}
   </div>
+
+  <div class="mobile-actionbar">
+    <button type="button" class="mobile-settings-btn" onclick={openInspector} aria-expanded={inspectorOpen} aria-controls="post-settings">
+      <SlidersHorizontal size={16} />
+      Settings
+    </button>
+    <span class:dirty class="save-state">{dirty ? "Unsaved" : saveStatus === "saved" ? "Saved" : "Ready"} · {wordCount} words</span>
+    <button type="button" class="save-btn" onclick={save} disabled={saving}>
+      <Save size={16} />
+      {saving ? "Saving..." : isNew ? "Create" : "Save"}
+    </button>
+  </div>
 </section>
+
+{#if inspectorOpen}
+  <div class="inspector-backdrop" role="presentation" onclick={closeInspector}></div>
+{/if}
 
 {#if pickerTarget}
   <div class="media-picker-portal">
@@ -2026,6 +2060,159 @@
       display: flex;
       justify-content: flex-end;
       gap: 0.5rem;
+    }
+  }
+
+  /* Mobile-only chrome — hidden on tablet/desktop, enabled below. */
+  .mobile-actionbar,
+  .inspector-drawer-head {
+    display: none;
+  }
+
+  @media (max-width: #{$breakpoint-tablet - 1px}) {
+    .editor-workspace {
+      padding-bottom: 4.25rem; /* clear the fixed bottom action bar */
+    }
+
+    .editor-topbar {
+      position: static; /* sticky admin header has variable height on mobile */
+      padding: 0.5rem;
+      gap: 0.5rem;
+    }
+
+    /* One swipeable row instead of wrapping to 4–5 rows. */
+    .toolbar {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      padding-bottom: 0.15rem;
+
+      &::-webkit-scrollbar {
+        display: none;
+      }
+
+      > * {
+        flex: 0 0 auto;
+      }
+
+      /* keep the block-type select compact so format buttons stay visible */
+      select {
+        width: auto;
+        max-width: 9rem;
+      }
+    }
+
+    /* Save + status move to the fixed bottom bar. */
+    .save-strip {
+      display: none;
+    }
+
+    /* Comfortable touch targets (~44px; base font is 14px). */
+    .toolbar button,
+    .toolbar select {
+      min-height: 3.15rem;
+    }
+    .toolbar button:not(.text-btn) {
+      width: 3.15rem;
+    }
+
+    /* Frontmatter becomes an off-canvas right drawer. */
+    .inspector {
+      position: fixed;
+      top: 0;
+      right: 0;
+      height: 100dvh;
+      width: min(22rem, 88vw);
+      z-index: 120;
+      overflow-y: auto;
+      background-color: $color-tertiary;
+      border-left: 1px solid $color-accent-1;
+      box-shadow: -8px 0 24px rgba($color-text, 0.28);
+      transform: translateX(100%);
+      transition: transform 0.25s ease;
+    }
+    .inspector.is-open {
+      transform: translateX(0);
+    }
+
+    .inspector-drawer-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      padding: 0.85rem;
+      border-bottom: 1px solid rgba($color-accent-1, 0.5);
+      background-color: $color-tertiary;
+      color: $color-text;
+      font-weight: 800;
+
+      .drawer-close {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 2.8rem;
+        min-width: 2.8rem;
+        border: 1px solid $color-accent-1;
+        border-radius: 5px;
+        background-color: rgba(244, 249, 225, 0.4);
+        color: $color-text;
+        cursor: pointer;
+      }
+    }
+
+    .inspector-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 115;
+      background-color: rgba($color-text, 0.5);
+      border: 0;
+    }
+
+    /* Fixed bottom action bar: settings toggle + status + save. */
+    .mobile-actionbar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      position: fixed;
+      bottom: 0;
+      inset-inline: 0;
+      z-index: 110;
+      padding: 0.55rem clamp(0.75rem, 3vw, 1rem);
+      background-color: $color-primary;
+      border-top: 1px solid $color-accent-1;
+
+      .save-state {
+        flex: 1 1 auto;
+        text-align: right;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .save-btn {
+        flex: 0 0 auto;
+        min-height: 3rem;
+      }
+
+      .mobile-settings-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        flex: 0 0 auto;
+        min-height: 3rem;
+        border: 1px solid $color-accent-1;
+        border-radius: 5px;
+        background-color: rgba(244, 249, 225, 0.4);
+        color: $color-text;
+        font-family: "JetBrains Mono", monospace;
+        font-size: $fs-sm;
+        font-weight: 800;
+        padding: 0.45rem 0.7rem;
+        cursor: pointer;
+      }
     }
   }
 </style>
