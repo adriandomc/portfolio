@@ -17,6 +17,10 @@ ZapaPOS is a project I've been working on since October 2025, and as of April 20
 
 In this blog post, I want to share the process of creating this point of sale software and the challenges that arose; choosing the right software stack, the complexity of integrating an specific user workflow, testing every possible scenario to ensure the maximum reliability, among others.
 
+This is a series of blog posts, being this the first one, that talks about the iterations of ZapaPOS, from its conception to its production-ready app.
+
+If you're curious about the app's functionalities, don't you worry. You can check it out right here: 
+
 ## Working with the right stack
 
 The hardest decisions happen at the beginning of creating a product. When you're laying out the foundations, just like building a house, you have to make sure you're choosing the right resources, strong, durable building materials, that can withstand the test of time, and those that require the less maintenance in the long run (you won't be re-building your home every two years, right?). However, my approach to software making has always been one of trial and error, so to build ZapaPOS I had to go through an iterative process to settle down with a tech stack I felt "at home", and thanks to spec-driven development, aided by LLMs, experimenting to build a web platform takes very little time.
@@ -27,7 +31,7 @@ The first iteration of ZapaPOS was made using Ruby on Rails. Development with th
 
 <Figure
   src="/images/blog/building-zapa-pos/zapapos-ror-1.jpg"
-  alt="A POS for retail web platform"
+  alt="A POS for retail web platform built with Ruby on Rails"
 >
   First iteration of ZapaPOS, made with Ruby on Rails
 </Figure>
@@ -38,7 +42,10 @@ I wasn't so sure that this was the best approach, considering it is intended to 
 
 <Figure
   src="/images/blog/building-zapa-pos/zapapos-ror-2.png"
-/>
+  alt="A POS for retail web platform built with Ruby on Rails"
+>
+  Window-based navigation on Ruby on Rails Hotwire and Turbo
+</Figure>
 
 Then the desktop-like navigation came to solve some issues (now there was real-time updating) but introduced some other (heavy RAM usage, incomplete tables loading, items list weird updating, a long etcetera). The draggable windows made it look like a desktop application, without being one, and made the customer happy, because their existing POS (a very legacy one, as they had to work with Windows 7) allowed to open multiple windows to work on different stuff at the same time.
 
@@ -70,6 +77,21 @@ How it looked like? Well, a lot better than the Rails iteration, as this had a b
   ZapaPOS second iteration
 </ImageCarousel>
 
-### Meteor strike
+### Meteor in the sky
 
-After dealing with
+After the second iteration, I had a talk with the customer to discuss how viable this multiplatform approach would be useful for the business. We checked a normal workflow starting from warehouse orders, processing sale tickets and returns, which worked out pretty well with some minor sync issues (a little bit of latency when processing which diminished the 'real-time' feat). I have to mention that along this design process I had full ownership of the design decisions, and that it happened in the meantime of 3 weeks approximately, and thanks to the LLMs and AI agents, I was able to iterate and test in a fast manner. During this phase, I was again looking for another framework that would fulfill my desires of a well-rounded full-stack experience, even if it meant that I wouldn't ship it as a multiplatform using Tauri.
+
+The search was over. I spotted a "Meteor.js" on the horizon. After a long time researching and iterating, the holy grail for app development was found. At least for this specific POS. Why does Meteor work better than the other two proposals?
+
+Meteor has a one-to-one integration with MongoDB, which takes advantage of Mongo's real-time data synchronization, so it triggers silent updates to the UI and gives a fully reactive experience for the user. Another killer feature of Meteor is how the frontend communicates with the backend via RPC, which I have found to be critical for a real-time app like ZapaPOS. 
+
+<Figure
+  src="/images/blog/building-zapa-pos/zapapos-meteor-1.png"
+  alt="A POS for retail web platform built with Meteor"
+>
+  ZapaPOS III: The Final Product
+</Figure>
+
+That's it for Part I of this series regarding ZapaPOS. In the next part, we will see the main technical challenges of this web platform and how they were solved (or kicked under the rug... just kidding......).
+
+Thanks for reading! :D
