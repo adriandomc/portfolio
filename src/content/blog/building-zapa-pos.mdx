@@ -9,6 +9,24 @@ tags:
   - Software
 draft: true
 ---
+import Figure from '/src/components/Figure.astro';
+
 ZapaPOS is a project I've been working on since October 2025, and as of April 2026, it entered to the production stage. It's one of the most complex projects, yet fascinating, I have built.
 
 In this blog post, I want to share the process of creating this point of sale software and the challenges that arose; choosing the right software stack, the complexity of integrating an specific user workflow, testing every possible scenario to ensure the maximum reliability, among others.
+
+## Working with the right stack
+
+The hardest decisions happen at the beginning of creating a product. When you're laying out the foundations, just like building a house, you have to make sure you're choosing the right resources, strong, durable building materials, that can withstand the test of time, and those that require the less maintenance in the long run (you won't be re-building your home every two years, right?). However, my approach to software making has always been one of trial and error, so to build ZapaPOS I had to go through an iterative process to settle down with a tech stack I felt "at home", and thanks to spec-driven development, aided by LLMs, experimenting to build a web platform takes very little time.
+
+### Polishing the Ruby
+
+The first iteration of ZapaPOS was made using Ruby on Rails. Development with this full-stack framework felt almost like magic: you just align to the Ruby on Rails Doctrine and you surely will be on track to build a solid platform. It was pretty much comprised of RoR + PostgreSQL, that's it. The frontend didn't use a fancy Javascript-based framework, just embedded Ruby templates, SCSS and ViewComponent, for maximum compatibility the Ruby ecosystem. This is what it looked like:  
+
+
+<Figure
+  src="/images/blog/building-zapa-pos/zapapos-ror-1.jpg"
+  alt="A POS for retail web platform"
+>
+  First iteration of ZapaPOS, made with Ruby on Rails
+</Figure>
