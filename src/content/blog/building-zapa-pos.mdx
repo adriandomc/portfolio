@@ -11,6 +11,7 @@ tags:
 draft: false
 ---
 import Figure from '/src/components/Figure.astro';
+import ImageCarousel from '/src/components/ImageCarousel.astro';
 
 ZapaPOS is a project I've been working on since October 2025, and as of April 2026, it entered to the production stage. It's one of the most complex projects, yet fascinating, I have built.
 
@@ -35,6 +36,10 @@ As you can see, it had a very generic look-and-feel, with a sidebar-based naviga
 
 I wasn't so sure that this was the best approach, considering it is intended to be used to sell products. To me, it felt as if I was browsing through a store catalog, not a retail inventory. So I thought over this design for many nights, wondering how it could be improved, how the UI could invite the user to tinker with it. The full-page navigation wasn't as proactive as I wanted this system to be, and I lost the count of how many times the Turbo frames broke when rendering partials, because I insisted it had to silently reload the website without triggering a full-page reload. It was a mess. It worked, but still was hideous.
 
+<Figure
+  src="/images/blog/building-zapa-pos/zapapos-ror-2.png"
+/>
+
 Then the desktop-like navigation came to solve some issues (now there was real-time updating) but introduced some other (heavy RAM usage, incomplete tables loading, items list weird updating, a long etcetera). The draggable windows made it look like a desktop application, without being one, and made the customer happy, because their existing POS (a very legacy one, as they had to work with Windows 7) allowed to open multiple windows to work on different stuff at the same time.
 
 ### At the top of the desk
@@ -47,13 +52,24 @@ As you can expect, this decision came with a lot of unexpected issues, as I (the
 
 How it looked like? Well, a lot better than the Rails iteration, as this had a better design system and the window navigation was native. Also, it had a mobile app, so you don't rely on your web browser (except that you do need a web browser, as it is still an embedded webview) to serve your POS and check your stock on the go!
 
-<Figure
-  src="/images/blog/building-zapa-pos/zapapos-tauri-1.png"
-  alt="POS platform for desktop using Tauri"
+<ImageCarousel
+  images={[
+  {
+    "src": "/images/blog/building-zapa-pos/zapapos-tauri-1.png",
+    "alt": "Desktop ZapaPOS made with Tauri"
+  },
+  {
+    "src": "/images/blog/building-zapa-pos/zapapos-tauri-2.png",
+    "alt": "ZapaPOS for mobile made with Tauri"
+  }
+]}
+  maxWidth="48rem"
+  aspectRatio="16 / 10"
+  objectFit="contain"
 >
-  ZapaPOS working as a stuff
-</Figure>
+  ZapaPOS second iteration
+</ImageCarousel>
 
-### Meteor strike 
+### Meteor strike
 
 After dealing with
