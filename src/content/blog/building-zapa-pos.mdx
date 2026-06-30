@@ -7,7 +7,7 @@ tags:
   - Typescript
   - MongoDB
   - Software
-draft: true
+draft: false
 ---
 import Figure from '/src/components/Figure.astro';
 
@@ -21,12 +21,24 @@ The hardest decisions happen at the beginning of creating a product. When you're
 
 ### Polishing the Ruby
 
-The first iteration of ZapaPOS was made using Ruby on Rails. Development with this full-stack framework felt almost like magic: you just align to the Ruby on Rails Doctrine and you surely will be on track to build a solid platform. It was pretty much comprised of RoR + PostgreSQL, that's it. The frontend didn't use a fancy Javascript-based framework, just embedded Ruby templates, SCSS and ViewComponent, for maximum compatibility the Ruby ecosystem. This is what it looked like:  
-
+The first iteration of ZapaPOS was made using Ruby on Rails. Development with this full-stack framework felt almost like magic: you just align to the Ruby on Rails Doctrine and you surely will be on track to build a solid platform. It was pretty much comprised of RoR + PostgreSQL, that's it. The frontend didn't use a fancy Javascript-based framework, just embedded Ruby templates, SCSS and ViewComponent, for maximum compatibility the Ruby ecosystem. This is what it looked like:
 
 <Figure
   src="/images/blog/building-zapa-pos/zapapos-ror-1.jpg"
   alt="A POS for retail web platform"
 >
   First iteration of ZapaPOS, made with Ruby on Rails
+</Figure>
+
+As you can see, it had a very generic look-and-feel, with a sidebar-based navigation and sporting a Bootstrap-esque UI. The customer liked the look, but I knew it could improve (more on this later...).
+
+I wasn't so sure that this was the best approach, considering it is intended to be used to sell products. To me, it felt as if I was browsing through a store catalog, not a retail inventory. So I thought over this design for many nights, wondering how it could be improved, how the UI could invite the user to tinker with it. The full-page navigation wasn't as proactive as I wanted this system to be, and I lost the count of how many times the Turbo frames broke when rendering partials, because I insisted it had to silently reload the website without triggering a full-page reload. It was a mess. It worked, but still was hideous.
+
+Then the desktop-like navigation came to solve some issues (now there was real-time updating) but introduced some other (heavy RAM usage, incomplete tables loading, items list weird updating, a long etcetera). The draggable windows made it look like a desktop application, without being one, and made the customer happy, because their existing POS (a very legacy one, as they had to work with Windows 7) allowed to open multiple windows to work on different stuff at the same time.
+
+<Figure
+  src="/images/blog/building-zapa-pos/zapapos-ror-2.png"
+  alt="A POS for retail web platform with window-based navigation"
+>
+  Window-based navigation on ZapaPOS Ruby on Rails Edition®
 </Figure>
