@@ -7,6 +7,7 @@ tags:
   - Typescript
   - MongoDB
   - Software
+  - Ruby on Rails
 draft: false
 ---
 import Figure from '/src/components/Figure.astro';
@@ -36,9 +37,23 @@ I wasn't so sure that this was the best approach, considering it is intended to 
 
 Then the desktop-like navigation came to solve some issues (now there was real-time updating) but introduced some other (heavy RAM usage, incomplete tables loading, items list weird updating, a long etcetera). The draggable windows made it look like a desktop application, without being one, and made the customer happy, because their existing POS (a very legacy one, as they had to work with Windows 7) allowed to open multiple windows to work on different stuff at the same time.
 
+### At the top of the desk
+
+After dealing with multiple issues from the first MVP, I knew I had to work around it. The easiest choice was to stop building a web platform altogether and concentrate on making it desktop-first (not desktop-native), so the window navigation was more native oriented. Just as a disclaimer, at that moment I wasn't aware of Hotwire Native, which would have made a transition from the first iteration a bit more desirable.
+
+Now, with Ruby on Rails ditched and out of the way, again a decision was to be made. What amazing monolithic framework I would choose this time to re-create ZapaPOS? Well... this time I wasn't intending to base my decisions in a single framework, but rather looking for a solid tech stack that would redefine this POS as a real-time, local-first, multi-platform solution. With this in mind, and guided by the results of a solid research phase, I chose to continue this journey with Tauri + Svelte + SQLite + ElectricSQL + PostgreSQL + Hono. Phew, what a mouthful! Yeah, there may be some redundancy by the SQL engines, as each one has a defined purpose (SQLite on desktop and mobile, ElectricSQL self-hosted as server sync and PostgreSQL for the cloud DB).
+
+As you can expect, this decision came with a lot of unexpected issues, as I (the LLM, mostly) had to deal with translating the SQLite queries into PostgreSQL, and sync them via ElectricSQL, this caused a lot of race conditions for simple actions such as updating multiple products in a batch operation. This iteration, being local-first, had to deal with reconciling sales tickets issued by multiple cashiers, and again, more issues were introduced rather than solved.
+
+How it looked like? Well, a lot better than the Rails iteration, as this had a better design system and the window navigation was native. Also, it had a mobile app, so you don't rely on your web browser (except that you do need a web browser, as it is still an embedded webview) to serve your POS and check your stock on the go!
+
 <Figure
-  src="/images/blog/building-zapa-pos/zapapos-ror-2.png"
-  alt="A POS for retail web platform with window-based navigation"
+  src="/images/blog/building-zapa-pos/zapapos-tauri-1.png"
+  alt="POS platform for desktop using Tauri"
 >
-  Window-based navigation on ZapaPOS Ruby on Rails Edition®
+  ZapaPOS working as a stuff
 </Figure>
+
+### Meteor strike 
+
+After dealing with
