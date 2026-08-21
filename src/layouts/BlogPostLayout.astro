@@ -1,7 +1,6 @@
 ---
 import BaseLayout from "./BaseLayout.astro";
 import Menu from "../components/Menu.astro";
-import Badge from "../components/Badge.astro";
 import ImageViewer from "../components/ImageViewer.astro";
 
 interface Props {
@@ -30,10 +29,10 @@ const formattedDate = date.toLocaleDateString("en-US", {
           <time datetime={date.toISOString()}>{formattedDate}</time>
           {
             tags.length > 0 && (
-              <div class="post-tags">
-                {tags.map((tag) => (
-                  <Badge title={tag} />
-                ))}
+                <div class="post-tags">
+                  {tags.map((tag) => (
+                    <span>{tag}</span>
+                  ))}
               </div>
             )
           }
@@ -92,6 +91,11 @@ const formattedDate = date.toLocaleDateString("en-US", {
     display: flex;
     flex-wrap: wrap;
     gap: 0.4rem;
+
+    span::before {
+      content: "+ ";
+      color: $color-accent-2;
+    }
   }
 
   .post-content {
@@ -168,8 +172,6 @@ const formattedDate = date.toLocaleDateString("en-US", {
       border-left: 3px solid $color-accent-2;
       margin: 1.5rem 0;
       padding: 0.5rem 1rem;
-      background-color: $color-primary;
-      border-radius: 0 5px 5px 0;
 
       :global(p) {
         margin: 0;

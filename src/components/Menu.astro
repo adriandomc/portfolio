@@ -28,7 +28,7 @@ const menu = [
 ];
 ---
 
-<header>
+<header class="global-menu">
   <nav aria-label="Main navigation">
     {
       menu.map((item) =>
@@ -48,11 +48,12 @@ const menu = [
 
 <style lang="scss">
   header {
+    position: fixed;
+    z-index: 40;
+    top: 0.85rem;
+    left: 50%;
     display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    padding: 0 1rem;
+    transform: translateX(-50%);
   }
 
   nav {
@@ -61,19 +62,16 @@ const menu = [
     flex-wrap: nowrap;
     justify-content: center;
     align-items: center;
-    background-color: $color-accent-1;
-    border-radius: 5px;
-    padding: 0 0.25rem;
+    background-color: rgba($color-accent-1, 0.92);
+    border: 1px solid rgba($color-secondary, 0.34);
+    border-radius: 4px;
+    padding: 0 0.35rem;
     position: relative;
-    margin-top: 1.5rem;
-    width: 100%;
-    max-width: 60rem;
+    width: max-content;
     gap: 0;
-    height: 2.85rem;
-
-    @include respond-to("tablet") {
-      padding: 0 1rem;
-    }
+    height: 2.2rem;
+    box-shadow: 0 0.75rem 2.5rem rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(12px);
 
     .menu-item {
       display: flex;
@@ -94,12 +92,12 @@ const menu = [
         padding: 0 0.25rem;
         text-decoration: none;
         color: $color-white;
-        font-size: $fs-md;
+        font-size: $fs-sm;
         white-space: nowrap;
         position: relative;
         z-index: 2;
         transition: color 0.3s ease;
-        padding: 0 1.5rem;
+        padding: 0 clamp(0.45rem, 2vw, 1rem);
       }
 
       &::before,
@@ -124,7 +122,7 @@ const menu = [
       &.active {
         &::before,
         &::after {
-          height: 4px;
+          height: 3px;
         }
       }
 
@@ -144,14 +142,14 @@ const menu = [
     .menu-item-home {
       display: flex;
       background-color: $color-accent-2;
-      font-size: $fs-2xl;
-      width: 4rem;
-      height: 4rem;
+      font-size: $fs-lg;
+      width: 3.15rem;
+      height: 3.15rem;
       border-radius: 50%;
       align-items: center;
       justify-content: center;
-      margin: 0 1rem;
-      box-shadow: 0 0 0 8px $color-accent-1;
+      margin: 0 0.55rem;
+      box-shadow: 0 0 0 6px $color-accent-1;
       z-index: 10;
       overflow: hidden;
       transition: background-color 0.3s ease;
@@ -177,5 +175,12 @@ const menu = [
         transition: color 0.3s ease;
       }
     }
+  }
+
+  @media (max-width: 540px) {
+    header { top: 0.6rem; }
+    nav { height: 2rem; padding: 0 0.15rem; }
+    nav .menu-item a { padding: 0 0.38rem; font-size: 0.68rem; }
+    nav .menu-item-home { width: 2.7rem; height: 2.7rem; margin: 0 0.3rem; font-size: 0.9rem; box-shadow: 0 0 0 4px $color-accent-1; }
   }
 </style>

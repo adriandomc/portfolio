@@ -3,8 +3,6 @@ export const prerender = true;
 
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Menu from "../components/Menu.astro";
-import Card from "../components/Card.astro";
-import JobCard from "../components/JobCard.astro";
 
 const title = "About";
 
@@ -65,7 +63,7 @@ const jobsExperience = [
   <main id="main-content">
     <h1>About Me</h1>
     <section class="bio">
-      <Card>
+      <div class="bio-copy">
         <p>
           I'm Adrián Domínguez, a software developer based in Mexico. I specialize
           in building modern web applications with a focus on clean code,
@@ -88,14 +86,20 @@ const jobsExperience = [
           <a href="https://adriandomc.com" target="_blank">my personal website</a> (it is
           currently in Spanish).
         </p>
-      </Card>
+      </div>
     </section>
     <section class="experience">
       <h2>Job Experience</h2>
       <div class="timeline">
         {
         jobsExperience.map((job) => (
-          <JobCard data={job} />
+          <article class="job">
+            <header>
+              <h3>{job.header}</h3>
+              <time>{job.period}</time>
+            </header>
+            <ul>{job.activities.map((activity) => <li>{activity}</li>)}</ul>
+          </article>
         ))
         }
       </div>
@@ -131,9 +135,37 @@ const jobsExperience = [
     }
   }
 
+  .bio-copy {
+    max-width: 48rem;
+    padding-left: 1rem;
+    border-left: 2px solid $color-accent-2;
+  }
+
   .timeline {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 2rem;
+  }
+
+  .job {
+    padding: 0 0 0 1rem;
+    border-left: 1px solid rgba($color-accent-1, 0.65);
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 0.35rem 1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    time {
+      color: $color-accent-1;
+      font-weight: 700;
+    }
+
+    li + li {
+      margin-top: 0.45rem;
+    }
   }
 </style>

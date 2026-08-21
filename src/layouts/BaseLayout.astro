@@ -1,6 +1,9 @@
 ---
 import "../styles/base.scss";
+import { ClientRouter } from "astro:transitions";
 import Footer from "../components/Footer.astro";
+import Menu from "../components/Menu.astro";
+import WorldShell from "../components/world/WorldShell.svelte";
 
 interface Props {
   title: string;
@@ -10,6 +13,9 @@ interface Props {
 const { title, description = "Adrián Domínguez — Software Developer" } = Astro.props;
 const siteUrl = "https://portfolio.adriandomc.com";
 const canonicalURL = new URL(Astro.url.pathname, siteUrl);
+const isHome = Astro.url.pathname === "/";
+const isWorldRoute = isHome || ["/projects", "/blog", "/about", "/contact"].some((path) => Astro.url.pathname === path || Astro.url.pathname.startsWith(`${path}/`));
+const activeItem = Astro.url.pathname === "/" ? "Home" : Astro.url.pathname.startsWith("/projects") ? "Projects" : Astro.url.pathname.startsWith("/blog") ? "Blog" : Astro.url.pathname.startsWith("/about") ? "About" : Astro.url.pathname.startsWith("/contact") ? "Contact" : undefined;
 ---
 
 <html lang="en">
@@ -31,11 +37,37 @@ const canonicalURL = new URL(Astro.url.pathname, siteUrl);
       href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
       rel="stylesheet"
     />
+    <ClientRouter />
 
     <title>{title}</title>
   </head>
-  <body>
-    <slot />
-    <Footer />
+  <body class:list={["world-public", { "journey-home": isHome }]}>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    {/* Dismissal is pure CSS driven by html[data-world-render], so it also works on
+        view-transition swaps where inline scripts do not re-run. */}
+    <div id="world-loader" aria-hidden="true">
+      <div class="loader-puppet">
+        <span class="loader-string"></span>
+        <img src="/images/cosmic-dinodog/reference.png" alt="" width="86" height="122" />
+      </div>
+      <span class="loader-dots"><i></i><i></i><i></i></span>
+    </div>
+    <noscript><style>#world-loader { display: none; }</style></noscript>
+    <WorldShell client:load transition:persist="world-shell" route={Astro.url.pathname} />
+    <Menu activeItem={activeItem} />
+    <script>
+      // Move focus to the swapped-in content after client-side navigation so
+      // keyboard and screen-reader users land where the page changed.
+      document.addEventListener("astro:after-swap", () => {
+        const main = document.getElementById("main-content");
+        if (!main) return;
+        main.setAttribute("tabindex", "-1");
+        main.focus({ preventScroll: true });
+      });
+    </script>
+    <div class:list={["site-content", isHome ? "site-content--journey" : isWorldRoute ? "site-content--world" : "site-content--window"]}>
+      <slot />
+      {!isHome && <Footer />}
+    </div>
   </body>
 </html>

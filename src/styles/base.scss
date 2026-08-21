@@ -13,20 +13,106 @@ html {
 }
 
 body {
-  background-color: $color-tertiary;
-  margin: 0 auto;
-  padding: 0 1.5rem;
+  background: #090713;
+  margin: 0;
+  padding: 0;
   width: 100%;
-  max-width: 1200px;
+  min-height: 100%;
   box-sizing: border-box;
+}
 
-  @include respond-to("tablet") {
-    padding: 0 3rem;
-  }
+// No scroll-snap or CSS smooth scrolling on the journey: the 3D camera already
+// eases toward the scroll position, and a second easing layer fights it.
 
-  @include respond-to("desktop") {
-    padding: 0 5rem;
+body.is-dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.site-content {
+  position: relative;
+  z-index: 1;
+}
+
+// Only inert the journey copy while the 3D world is actually presenting it;
+// in fallback and no-JS modes the text must stay selectable and clickable.
+html:is([data-world-render="ready"], [data-world-render="degraded"]) .site-content--journey {
+  pointer-events: none;
+}
+
+.site-content--world {
+  width: min(calc(100% - 2rem), 48rem);
+  min-height: 100svh;
+  margin: 0 auto;
+  padding: clamp(6.5rem, 12vh, 9rem) clamp(0rem, 3vw, 2rem) 4rem;
+  color: #effbdf;
+  text-shadow: 0 0.12rem 0.3rem #06050a, 0 0.3rem 1.4rem #06050a, 0 0 3rem #090713;
+  transition: opacity 0.35s ease, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.site-content--world::before {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  inset: 0 auto 0 0;
+  width: min(76rem, 76vw);
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 24% 28%, rgba(22, 31, 22, 0.68), transparent 58%),
+    linear-gradient(90deg, rgba(7, 6, 12, 0.94) 0%, rgba(7, 6, 12, 0.78) 42%, rgba(7, 6, 12, 0.08) 100%);
+}
+
+body.world-public .site-content--world main :is(h1, h2, h3, h4, p, li, time, strong, small) {
+  color: #effbdf;
+}
+
+body.world-public .site-content--world main a {
+  color: #a8e0d2;
+}
+
+html:is([data-world-render="ready"], [data-world-render="degraded"])[data-world-travel="flying"] .site-content--world {
+  opacity: 0;
+  visibility: hidden; // keep hidden content out of the tab order during flight
+  pointer-events: none;
+  transform: translateY(1.25rem);
+  transition: opacity 0.35s ease, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s 0.35s;
+}
+
+html:is([data-world-render="ready"], [data-world-render="degraded"])[data-world-travel="landed"] .site-content--world {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+}
+
+@media (min-width: 64rem) {
+  .site-content--world {
+    width: min(44rem, 47vw);
+    margin-left: clamp(3rem, 6vw, 7rem);
   }
+}
+
+@media (max-width: 63.99rem) {
+  .site-content--world::before {
+    width: 100vw;
+    background: linear-gradient(90deg, rgba(7, 6, 12, 0.92), rgba(7, 6, 12, 0.64));
+  }
+}
+
+.site-content--window {
+  width: min(calc(100% - 2rem), 72rem);
+  min-height: calc(100svh - 8rem);
+  margin: 6.5rem auto 1.5rem;
+  padding: clamp(1rem, 4vw, 3rem);
+  color: $color-text;
+  border: 1px solid rgba($color-secondary, 0.35);
+  border-radius: 1.25rem;
+  background: rgba($color-tertiary, 0.94);
+  box-shadow: 0 1.5rem 5rem rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(18px);
+}
+
+.site-content .global-menu {
+  display: none;
 }
 
 *,
@@ -101,4 +187,115 @@ img {
 :focus-visible {
   outline: 2px solid $color-accent-2;
   outline-offset: 2px;
+}
+
+#main-content:focus {
+  outline: none;
+}
+
+// Full-screen curtain while the 3D world boots: the puppet drops in on its string.
+#world-loader {
+  position: fixed;
+  z-index: 55;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 62% 15%, #31213f 0, #120d1c 38%, #07060c 82%);
+  transition: opacity 0.6s ease, visibility 0s 0.6s;
+  // Failsafe: if the world never reports in (hydration failure), lift the curtain anyway.
+  animation: loader-expire 0.6s ease 12s forwards;
+
+  .loader-puppet {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    animation: loader-bob 1.5s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  }
+
+  .loader-string {
+    width: 1.5px;
+    height: clamp(4rem, 16vh, 9rem);
+    background: linear-gradient(rgba(#d7f2ba, 0), rgba(#d7f2ba, 0.65));
+  }
+
+  img {
+    width: clamp(4rem, 9vw, 5.4rem);
+    height: auto;
+    filter: drop-shadow(0 0.6rem 1.6rem rgba(0, 0, 0, 0.55));
+    transform-origin: top center;
+    animation: loader-sway 3.2s ease-in-out infinite;
+  }
+
+  .loader-dots {
+    display: flex;
+    gap: 0.45rem;
+
+    i {
+      width: 0.4rem;
+      height: 0.4rem;
+      border-radius: 50%;
+      background: #d7f2ba;
+      animation: loader-dot 1.2s ease-in-out infinite;
+
+      &:nth-child(2) { animation-delay: 0.15s; }
+      &:nth-child(3) { animation-delay: 0.3s; }
+    }
+  }
+}
+
+html:is([data-world-render="ready"], [data-world-render="degraded"], [data-world-render="fallback"]) #world-loader {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+@keyframes loader-expire {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@keyframes loader-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-0.9rem); }
+}
+
+@keyframes loader-sway {
+  0%, 100% { transform: rotate(-3.5deg); }
+  50% { transform: rotate(3.5deg); }
+}
+
+@keyframes loader-dot {
+  0%, 100% { opacity: 0.25; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-0.3rem); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #world-loader .loader-puppet,
+  #world-loader img,
+  #world-loader .loader-dots i {
+    animation: none;
+  }
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 60;
+  top: 0.75rem;
+  left: 0.75rem;
+  padding: 0.5rem 0.9rem;
+  color: $color-text;
+  border-radius: 4px;
+  background: $color-tertiary;
+  font-weight: 800;
+  text-decoration: none;
+  transform: translateY(-4rem);
+
+  &:focus-visible {
+    transform: none;
+  }
 }

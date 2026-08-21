@@ -3,8 +3,6 @@ export const prerender = true;
 
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Menu from "../components/Menu.astro";
-import Card from "../components/Card.astro";
-import Button from "../components/Button.astro";
 
 const title = "Contact";
 
@@ -37,23 +35,17 @@ const links = [
       the channels below.
     </p>
 
-    <div class="contact-grid">
+    <ul class="contact-grid">
       {
         links.map((link) => (
-          <Card title={link.label}>
+          <li>
+            <h2>{link.label}</h2>
             <p>{link.description}</p>
-            <div class="contact-action">
-              <Button
-                label={`Visit ${link.label}`}
-                href={link.href}
-                variant="primary"
-                target={link.href.startsWith("mailto:") ? undefined : "_blank"}
-              />
-            </div>
-          </Card>
+            <a href={link.href} target={link.href.startsWith("mailto:") ? undefined : "_blank"} rel="noopener noreferrer">Visit {link.label} ↗</a>
+          </li>
         ))
       }
-    </div>
+    </ul>
   </main>
 </BaseLayout>
 
@@ -75,16 +67,29 @@ const links = [
   }
 
   .contact-grid {
+    list-style: none;
+    padding: 0;
     display: grid;
     grid-template-columns: 1fr;
-    gap: 1rem;
+    gap: 2rem;
 
     @include respond-to("tablet") {
       grid-template-columns: repeat(3, 1fr);
     }
   }
 
-  .contact-action {
-    margin-top: 1rem;
+  .contact-grid li {
+    padding-top: 1rem;
+    border-top: 1px solid rgba($color-accent-1, 0.7);
+
+    h2 {
+      margin-bottom: 0.4rem;
+    }
+
+    a {
+      display: inline-block;
+      margin-top: 0.75rem;
+      font-weight: 800;
+    }
   }
 </style>

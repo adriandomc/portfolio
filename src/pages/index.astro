@@ -1,125 +1,55 @@
 ---
 export const prerender = true;
-
 import BaseLayout from "../layouts/BaseLayout.astro";
-import Menu from "../components/Menu.astro";
-import Badge from "../components/Badge.astro";
-import Card from "../components/Card.astro";
-const title = "Home";
+import JourneyHud from "../components/JourneyHud.astro";
+import { stations } from "../lib/world-map";
 
-const techStack = {
-  Frontend: ["React", "TypeScript", "Astro", "HTML/CSS", "SCSS"],
-  Backend: ["Node.js", "PHP", "Ruby", "Express", "REST APIs"],
-  Tools: ["Git", "Docker", "Coolify", "Figma"],
-};
+const lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer posuere, nibh vitae luctus fermentum, justo sapien sodales tellus.";
 ---
 
-<BaseLayout title={title} description="Portfolio of Adrián Domínguez — Software Developer from Mexico specializing in React, TypeScript, PHP and Node.js.">
-  <Menu activeItem="Home" />
-  <main id="main-content">
-    <h1 style="margin-bottom:1rem">
-      <span class="main-name">ADRIÁN DOMÍNGUEZ CASASOLA</span>
-      <br />
-      <span class="main-job-position">SOFTWARE DEVELOPER</span>
-    </h1>
-    <div class="container">
-      <img src="/images/adrian.jpeg" alt="Profile Picture" width="240" height="240" />
-      <div class="presentation">
-        <h2>Hello!</h2>
-        <p>
-          My name is Adrián, I am a software developer from Mexico. My current
-          focus is on frontend web solutions, however I have experience working
-          through the whole web stack, from the design to the deployment of
-          fully fledged products.
-        </p>
-        <p>
-          I am passionate about learning new technologies, becoming a better 
-          developer and human being, as well as contributing to amazing projects 
-          that make a positive impact.
-        </p>
-      </div>
-    </div>
+<BaseLayout title="ADC — Portfolio" description="Portfolio de Adrián Domínguez Casasola.">
+  <JourneyHud />
+  <main id="main-content" class="journey" aria-label="Recorrido por el portfolio">
+    {stations.map((station) => (
+      <section id={station.id} class="journey-stop" aria-labelledby={`${station.id}-title`}>
+        <div class="scene-copy">
+          <h1 id={`${station.id}-title`}>{station.title.replaceAll("\n", " ")}</h1>
+          <p>{lorem}</p>
+          <ul aria-label="Productos de la estación">
+            {station.signage
+              .filter((sign) => !("title" in sign))
+              .map((sign) =>
+                "route" in sign && sign.route ? (
+                  <li><a href={sign.route}>{sign.text}</a></li>
+                ) : (
+                  <li>{sign.text}</li>
+                ),
+              )}
+          </ul>
+        </div>
+      </section>
+    ))}
   </main>
-  <section class="tech-stack">
-    <h2>Tech Stack</h2>
-    <div class="stack-grid">
-      {
-        Object.entries(techStack).map(([category, tools]) => (
-          <Card title={category}>
-            <div class="stack-badges">
-              {tools.map((tool) => (
-                <Badge title={tool} />
-              ))}
-            </div>
-          </Card>
-        ))
-      }
-    </div>
-  </section>
 </BaseLayout>
 
 <style lang="scss">
-  main {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    margin-top: 2rem;
-    margin-bottom: 2rem;
+  .journey { position: relative; z-index: 1; }
+  .journey-stop { min-height: 100svh; display: flex; align-items: center; padding: 6rem clamp(1rem, 7vw, 7rem) 4rem; scroll-snap-align: start; }
+  .scene-copy { width: min(38rem, 100%); color: #d7f2ba; text-shadow: 0 0.2rem 1rem #090713; }
+  .scene-copy h1 { max-width: 18ch; margin: 0.5rem 0 1rem; font-size: clamp(2rem, 6vw, 4rem); }
+  .scene-copy p { max-width: 52ch; }
+  .scene-copy ul { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; padding: 0; list-style: none; }
+  .scene-copy li::before { content: "+ "; color: #79b4a9; }
+  :global(html:is([data-world-render="ready"], [data-world-render="degraded"])) .scene-copy {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
-
-  .container {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 1.5rem;
-    background-color: $color-primary;
-    border: 1px solid $color-accent-1;
-    border-radius: 5px;
-    padding: 1rem;
-
-    img {
-      flex: 0 0 15rem;
-      width: 15rem;
-      height: 15rem;
-      border: 1px solid $color-accent-1;
-      border-radius: 50%;
-      object-fit: cover;
-    }
-
-    .presentation {
-      display: flex;
-      flex-direction: column;
-      flex: 1 1 20rem;
-    }
-  }
-
-  h1 {
-    text-align: center;
-  }
-
-  .main-name {
-    color: $color-accent-1;
-  }
-
-  .main-job-position {
-    color: $color-accent-2;
-  }
-
-  .stack-grid {
-    margin-top: 0.5rem;
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1rem;
-
-    @include respond-to("tablet") {
-      grid-template-columns: repeat(3, 1fr);
-    }
-  }
-
-  .stack-badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-  }
+  :global(html[data-world-render="fallback"]) .scene-copy { position: static; width: min(38rem, 100%); height: auto; margin: 0; overflow: visible; clip: auto; white-space: normal; }
 </style>

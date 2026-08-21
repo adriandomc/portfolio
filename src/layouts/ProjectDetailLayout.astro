@@ -1,7 +1,6 @@
 ---
 import BaseLayout from "./BaseLayout.astro";
 import Menu from "../components/Menu.astro";
-import Badge from "../components/Badge.astro";
 import ImageViewer from "../components/ImageViewer.astro";
 
 interface Props {
@@ -28,7 +27,7 @@ const { title, description, tags = [], href } = Astro.props;
               {tags.length > 0 && (
                 <div class="detail-tags">
                   {tags.map((tag) => (
-                    <Badge title={tag} />
+                    <span>{tag}</span>
                   ))}
                 </div>
               )}
@@ -101,20 +100,21 @@ const { title, description, tags = [], href } = Astro.props;
     display: flex;
     flex-wrap: wrap;
     gap: 0.4rem;
+
+    span::before {
+      content: "+ ";
+      color: $color-accent-2;
+    }
   }
 
   .visit-site {
     color: $color-accent-1;
     text-decoration: none;
     font-size: $fs-md;
-    border: 1px solid $color-accent-1;
-    border-radius: 5px;
-    padding: 0.35rem 0.75rem;
-    transition: color 0.2s ease, border-color 0.2s ease;
+    transition: color 0.2s ease;
 
     &:hover {
       color: $color-accent-2;
-      border-color: $color-accent-2;
     }
   }
 
@@ -192,8 +192,6 @@ const { title, description, tags = [], href } = Astro.props;
       border-left: 3px solid $color-accent-2;
       margin: 1.5rem 0;
       padding: 0.5rem 1rem;
-      background-color: $color-primary;
-      border-radius: 0 5px 5px 0;
 
       :global(p) {
         margin: 0;
