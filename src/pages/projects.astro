@@ -3,87 +3,85 @@ export const prerender = true;
 
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Menu from "../components/Menu.astro";
-import ProjectCard from "../components/ProjectCard.astro";
-import ImageViewer from "../components/ImageViewer.astro";
+import ProjectShowcase from "../components/ProjectShowcase.astro";
+import RevealOnScroll from "../components/RevealOnScroll.astro";
 import { getCollection } from "astro:content";
 
 const title = "Projects";
 
-const projects = (await getCollection("projects", ({ data }) => !data.draft && data.featured))
-  .sort((a, b) => (a.data.order ?? Infinity) - (b.data.order ?? Infinity))
-  .slice(0, 6);
+const projects = (
+  await getCollection("projects", ({ data }) => !data.draft)
+).sort((a, b) => (a.data.order ?? Infinity) - (b.data.order ?? Infinity));
 ---
 
-<BaseLayout title={title} description="Projects by Adrián Domínguez — a showcase of web development work.">
+<BaseLayout
+  title={title}
+  description="Projects by Adrián Domínguez — a showcase of web development work."
+>
   <Menu activeItem="Projects" />
   <main id="main-content">
-    <div class="heading-row">
+    <header class="page-head">
       <h1>Projects</h1>
-      <a href="/projects/all" class="show-all-link">Show all projects &rarr;</a>
-    </div>
-    <span class="info-text">(Click on images for full-size view)</span>
-    <div class="projects-grid">
+      <p class="page-lead">
+        Everything I have shipped, newest focus first — client platforms,
+        products and tools.
+      </p>
+    </header>
+    <div class="showcase-list">
       {
         projects.map((project) => (
-          <ProjectCard
+          <ProjectShowcase
             title={project.data.title}
             description={project.data.description}
+            summary={project.data.summary}
+            role={project.data.role}
+            year={project.data.year}
             tags={project.data.tags}
             images={project.data.images}
             href={project.data.href}
-            detailHref={project.body?.trim() ? `/projects/${project.id}` : undefined}
+            detailHref={
+              project.body?.trim() ? `/projects/${project.id}` : undefined
+            }
           />
         ))
       }
     </div>
   </main>
-  <ImageViewer />
+  <RevealOnScroll />
 </BaseLayout>
 
 <style lang="scss">
   main {
     display: flex;
     flex-direction: column;
-    margin-top: 2rem;
+    margin-bottom: 4rem;
   }
 
-  .heading-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 0.75rem;
-  }
-
-  .show-all-link {
-    color: $color-accent-1;
-    text-decoration: none;
-    font-size: $fs-xl;
-    transition: color 0.2s ease;
-
-    &:hover {
-      color: $color-accent-2;
-    }
-  }
-
-  .info-text {
-    margin-bottom: 1.5rem;
-    color: $color-accent-1;
-    font-size: $fs-sm;
-    font-style: italic;
-  }
-
-  .projects-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
+  .page-head {
+    padding: 3rem 0 1rem;
+    border-bottom: 1px solid rgba($color-accent-1, 0.35);
 
     @include respond-to("tablet") {
-      grid-template-columns: repeat(2, 1fr);
+      padding: 4rem 0 1.25rem;
     }
+  }
 
-    @include respond-to("desktop") {
-      grid-template-columns: repeat(3, 1fr);
+  .page-lead {
+    margin-top: 0.75rem;
+    max-width: 52ch;
+    color: color.adjust($color-accent-1, $lightness: -10%);
+    line-height: 1.6;
+  }
+
+  .showcase-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4rem;
+    margin-top: 3rem;
+
+    @include respond-to("tablet") {
+      gap: 6.5rem;
+      margin-top: 4rem;
     }
   }
 </style>

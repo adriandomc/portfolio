@@ -1,0 +1,252 @@
+---
+import { ArrowRight } from "@lucide/svelte";
+
+interface ImageItem {
+  src: string;
+  alt: string;
+}
+
+interface Props {
+  title: string;
+  description: string;
+  summary?: string;
+  role?: string;
+  year?: string;
+  images?: ImageItem[];
+  href?: string;
+  detailHref?: string;
+  tags?: string[];
+}
+
+const {
+  title,
+  description,
+  summary,
+  role,
+  year,
+  images = [],
+  href,
+  detailHref,
+  tags = [],
+} = Astro.props;
+
+// One link per band, covering the whole row. Prefer the case study; fall back
+// to the live site so a project is never a dead end.
+const cardHref = detailHref ?? href;
+const isExternal = !detailHref && Boolean(href);
+const cover = images[0];
+const meta = [role, year].filter(Boolean);
+---
+
+<article class="showcase" data-reveal>
+  <div class="showcase-media">
+    {
+      cover ? (
+        <img src={cover.src} alt={cover.alt} loading="lazy" />
+      ) : (
+        <span class="showcase-glyph">{title.charAt(0)}</span>
+      )
+    }
+    <span class="showcase-veil" aria-hidden="true"></span>
+  </div>
+
+  <div class="showcase-text">
+    <h3 class="showcase-title">
+      {
+        cardHref ? (
+          <a
+            href={cardHref}
+            class="showcase-link"
+            {...isExternal
+              ? { target: "_blank", rel: "noopener noreferrer" }
+              : {}}
+          >
+            {title}
+          </a>
+        ) : (
+          title
+        )
+      }
+    </h3>
+    {meta.length > 0 && <p class="showcase-meta">{meta.join(" · ")}</p>}
+    <p class="showcase-summary">{summary ?? description}</p>
+    {tags.length > 0 && <p class="showcase-tags">{tags.join(" · ")}</p>}
+    {
+      cardHref && (
+        <span class="showcase-cta" aria-hidden="true">
+          {isExternal ? "Visit site" : "Read case study"}
+          <ArrowRight size={18} />
+        </span>
+      )
+    }
+  </div>
+</article>
+
+<style lang="scss">
+  .showcase {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+    align-items: center;
+
+    @include respond-to("tablet") {
+      grid-template-columns: 1.35fr 1fr;
+      gap: 3rem;
+    }
+
+    // Alternate sides so the eye zig-zags down the page instead of scanning a
+    // single rigid column.
+    @include respond-to("tablet") {
+      &:nth-child(even) .showcase-media {
+        order: 2;
+      }
+    }
+  }
+
+  .showcase-media {
+    position: relative;
+    overflow: hidden;
+    border-radius: 8px;
+    aspect-ratio: 16 / 10;
+    background-color: $color-primary;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 18px 40px -22px rgba($color-text, 0.7);
+
+    img {
+      width: 100%;
+      height: 100%;
+      // `cover` anchored high: these are full-app screenshots, so the chrome and
+      // first rows carry the recognisable part.
+      object-fit: cover;
+      object-position: top center;
+      display: block;
+      transition: transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+    }
+  }
+
+  // Soft vignette so a bright screenshot sits in the page instead of punching a
+  // white hole in it.
+  .showcase-veil {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(
+        to top,
+        rgba($color-text, 0.16) 0%,
+        rgba($color-text, 0) 42%
+      ),
+      radial-gradient(
+        120% 90% at 50% 0%,
+        rgba($color-text, 0) 60%,
+        rgba($color-text, 0.14) 100%
+      );
+    transition: opacity 0.5s ease;
+  }
+
+  .showcase-glyph {
+    font-size: $fs-6xl;
+    font-weight: 800;
+    color: $color-accent-1;
+    opacity: 0.4;
+  }
+
+  .showcase:hover .showcase-media img {
+    transform: scale(1.045);
+  }
+
+  .showcase:hover .showcase-veil {
+    opacity: 0.55;
+  }
+
+  .showcase-title {
+    font-size: $fs-2xl;
+    line-height: 1.15;
+
+    @include respond-to("desktop") {
+      font-size: $fs-3xl;
+    }
+  }
+
+  .showcase-link {
+    color: $color-text;
+    text-decoration: none;
+
+    // Stretch the anchor over the whole band so the entire row is the target,
+    // while keeping one real link for screen readers and keyboard users.
+    &::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+    }
+
+    &:hover {
+      color: $color-accent-1;
+    }
+
+    &:focus-visible {
+      outline: 2px solid $color-accent-2;
+      outline-offset: 4px;
+    }
+  }
+
+  .showcase-meta {
+    margin: 0.5rem 0 0;
+    font-size: $fs-sm;
+    color: $color-accent-1;
+  }
+
+  .showcase-summary {
+    margin-top: 0.75rem;
+    max-width: 46ch;
+    color: color.adjust($color-accent-1, $lightness: -10%);
+    line-height: 1.6;
+    // Long feature-dump descriptions get trimmed rather than unbalancing the
+    // band. Drop this once every project has a short `summary`.
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .showcase-tags {
+    margin-top: 0.85rem;
+    font-size: $fs-sm;
+    color: $color-accent-2;
+  }
+
+  .showcase-cta {
+    margin-top: 1.25rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: $fs-sm;
+    color: $color-accent-1;
+    transition: gap 0.3s ease;
+  }
+
+  .showcase:hover .showcase-cta {
+    gap: 0.85rem;
+    color: $color-text;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .showcase-media img,
+    .showcase-veil,
+    .showcase-cta {
+      transition: none;
+    }
+
+    .showcase:hover .showcase-media img {
+      transform: none;
+    }
+
+    .showcase:hover .showcase-cta {
+      gap: 0.45rem;
+    }
+  }
+</style>

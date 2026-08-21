@@ -5,8 +5,15 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import Menu from "../components/Menu.astro";
 import Card from "../components/Card.astro";
 import JobCard from "../components/JobCard.astro";
+import Badge from "../components/Badge.astro";
 
 const title = "About";
+
+const techStack = {
+  Frontend: ["React", "TypeScript", "Astro", "HTML/CSS", "SCSS"],
+  Backend: ["Node.js", "PHP", "Ruby", "Express", "REST APIs"],
+  Tools: ["Git", "Docker", "Coolify", "Figma"],
+};
 
 const jobsExperience = [
   {
@@ -100,6 +107,22 @@ const jobsExperience = [
         }
       </div>
     </section>
+    <section class="tech-stack">
+      <h2>Tech Stack</h2>
+      <div class="stack-grid">
+        {
+          Object.entries(techStack).map(([category, tools]) => (
+            <Card title={category}>
+              <div class="stack-badges">
+                {tools.map((tool) => (
+                  <Badge title={tool} />
+                ))}
+              </div>
+            </Card>
+          ))
+        }
+      </div>
+    </section>
   </main>
 </BaseLayout>
 
@@ -135,5 +158,21 @@ const jobsExperience = [
     display: flex;
     flex-direction: column;
     gap: 1rem;
+  }
+
+  .stack-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+
+    @include respond-to("tablet") {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  .stack-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
   }
 </style>

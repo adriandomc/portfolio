@@ -28,6 +28,12 @@ const projects = defineCollection({
       )
       .default([]),
     href: z.string().optional(),
+    // Card-level framing. Optional so existing projects keep rendering while
+    // these get filled in: the card falls back to `description` when `summary`
+    // is absent, and hides the meta line when role/year are absent.
+    summary: z.string().optional(),
+    role: z.string().optional(),
+    year: z.string().optional(),
     tags: z.array(z.string()).default([]),
     featured: z.boolean().default(false),
     order: z.number().optional(),

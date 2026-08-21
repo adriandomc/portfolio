@@ -3,123 +3,157 @@ export const prerender = true;
 
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Menu from "../components/Menu.astro";
-import Badge from "../components/Badge.astro";
-import Card from "../components/Card.astro";
+import ProjectShowcase from "../components/ProjectShowcase.astro";
+import RevealOnScroll from "../components/RevealOnScroll.astro";
+import { getCollection } from "astro:content";
+
 const title = "Home";
 
-const techStack = {
-  Frontend: ["React", "TypeScript", "Astro", "HTML/CSS", "SCSS"],
-  Backend: ["Node.js", "PHP", "Ruby", "Express", "REST APIs"],
-  Tools: ["Git", "Docker", "Coolify", "Figma"],
-};
+const projects = (
+  await getCollection("projects", ({ data }) => !data.draft && data.featured)
+)
+  .sort((a, b) => (a.data.order ?? Infinity) - (b.data.order ?? Infinity))
+  .slice(0, 6);
 ---
 
-<BaseLayout title={title} description="Portfolio of Adrián Domínguez — Software Developer from Mexico specializing in React, TypeScript, PHP and Node.js.">
+<BaseLayout
+  title={title}
+  description="Portfolio of Adrián Domínguez — Software Developer from Mexico specializing in React, TypeScript, PHP and Node.js."
+>
   <Menu activeItem="Home" />
   <main id="main-content">
-    <h1 style="margin-bottom:1rem">
-      <span class="main-name">ADRIÁN DOMÍNGUEZ CASASOLA</span>
-      <br />
-      <span class="main-job-position">SOFTWARE DEVELOPER</span>
-    </h1>
-    <div class="container">
-      <img src="/images/adrian.jpeg" alt="Profile Picture" width="240" height="240" />
-      <div class="presentation">
-        <h2>Hello!</h2>
-        <p>
-          My name is Adrián, I am a software developer from Mexico. My current
-          focus is on frontend web solutions, however I have experience working
-          through the whole web stack, from the design to the deployment of
-          fully fledged products.
-        </p>
-        <p>
-          I am passionate about learning new technologies, becoming a better 
-          developer and human being, as well as contributing to amazing projects 
-          that make a positive impact.
-        </p>
+    <header class="intro">
+      <img
+        class="intro-avatar"
+        src="/images/adrian.jpeg"
+        alt="Adrián Domínguez Casasola"
+        width="64"
+        height="64"
+      />
+      <h1>
+        <span class="intro-name">Adrián Domínguez Casasola</span>
+        <span class="intro-role">Software Developer</span>
+      </h1>
+      <p class="intro-line">
+        Software developer from Mexico, working across the whole web stack —
+        from the design to the deployment of fully fledged products.
+      </p>
+    </header>
+
+    <section class="work" aria-labelledby="selected-work">
+      <div class="work-heading">
+        <h2 id="selected-work">Selected work</h2>
+        <a href="/projects" class="work-link">All projects &rarr;</a>
       </div>
-    </div>
+      <div class="showcase-list">
+        {
+          projects.map((project) => (
+            <ProjectShowcase
+              title={project.data.title}
+              description={project.data.description}
+              summary={project.data.summary}
+              role={project.data.role}
+              year={project.data.year}
+              tags={project.data.tags}
+              images={project.data.images}
+              href={project.data.href}
+              detailHref={
+                project.body?.trim() ? `/projects/${project.id}` : undefined
+              }
+            />
+          ))
+        }
+      </div>
+    </section>
   </main>
-  <section class="tech-stack">
-    <h2>Tech Stack</h2>
-    <div class="stack-grid">
-      {
-        Object.entries(techStack).map(([category, tools]) => (
-          <Card title={category}>
-            <div class="stack-badges">
-              {tools.map((tool) => (
-                <Badge title={tool} />
-              ))}
-            </div>
-          </Card>
-        ))
-      }
-    </div>
-  </section>
+  <RevealOnScroll />
 </BaseLayout>
 
 <style lang="scss">
   main {
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    margin-top: 2rem;
-    margin-bottom: 2rem;
+    margin-bottom: 4rem;
   }
 
-  .container {
+  .intro {
     display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 1.5rem;
-    background-color: $color-primary;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 3rem 0 3.5rem;
+
+    @include respond-to("tablet") {
+      padding: 4.5rem 0 5rem;
+    }
+  }
+
+  .intro-avatar {
+    width: 4rem;
+    height: 4rem;
+    border-radius: 50%;
+    object-fit: cover;
     border: 1px solid $color-accent-1;
-    border-radius: 5px;
-    padding: 1rem;
-
-    img {
-      flex: 0 0 15rem;
-      width: 15rem;
-      height: 15rem;
-      border: 1px solid $color-accent-1;
-      border-radius: 50%;
-      object-fit: cover;
-    }
-
-    .presentation {
-      display: flex;
-      flex-direction: column;
-      flex: 1 1 20rem;
-    }
+    margin-bottom: 0.75rem;
   }
 
   h1 {
-    text-align: center;
-  }
-
-  .main-name {
-    color: $color-accent-1;
-  }
-
-  .main-job-position {
-    color: $color-accent-2;
-  }
-
-  .stack-grid {
-    margin-top: 0.5rem;
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1rem;
+    display: flex;
+    flex-direction: column;
+    font-size: $fs-3xl;
+    line-height: 1.1;
 
     @include respond-to("tablet") {
-      grid-template-columns: repeat(3, 1fr);
+      font-size: $fs-4xl;
     }
   }
 
-  .stack-badges {
+  .intro-name {
+    color: $color-text;
+  }
+
+  .intro-role {
+    color: $color-accent-2;
+  }
+
+  .intro-line {
+    margin-top: 0.75rem;
+    max-width: 52ch;
+    color: color.adjust($color-accent-1, $lightness: -10%);
+    line-height: 1.6;
+  }
+
+  .work-heading {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.4rem;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgba($color-accent-1, 0.35);
+  }
+
+  .work-link {
+    color: $color-accent-1;
+    text-decoration: none;
+    transition: color 0.2s ease;
+
+    &:hover {
+      color: $color-accent-2;
+    }
+  }
+
+  // Generous rhythm between bands: the whitespace is what makes each project
+  // read as its own frame rather than a row in a list.
+  .showcase-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4rem;
+    margin-top: 3rem;
+
+    @include respond-to("tablet") {
+      gap: 6.5rem;
+      margin-top: 4rem;
+    }
   }
 </style>

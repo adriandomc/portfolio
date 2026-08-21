@@ -92,6 +92,8 @@ function rehypeCodeLanguageBadges() {
 export default defineConfig({
   site: "https://adriandomc.com",
   output: "server",
+  // /projects now lists every project, so the old "all" page is redundant.
+  redirects: { "/projects/all": "/projects" },
   adapter: node({ mode: "standalone" }),
   // Origin-check disabled: behind a reverse proxy (Coolify) `url.origin` is the
   // internal URL, which never matches the browser-supplied Origin. CSRF defense
