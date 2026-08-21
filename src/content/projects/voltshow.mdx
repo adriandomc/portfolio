@@ -1,0 +1,40 @@
+---
+title: Voltshow
+description: >-
+  A platform for turning web applications into interactive, step-by-step demos
+  that can be shared by link, embedded in a page or exported as video.
+tags:
+  - Typescript
+  - Svelte
+  - Interactive Demos
+images:
+  - src: /images/projects/voltshow/1.png
+    alt: Voltshow landing page for creating interactive product demos
+  - src: /images/projects/voltshow/2.png
+    alt: Interactive ZapaPOS demo presented in the Voltshow viewer
+  - src: /images/projects/voltshow/3.png
+    alt: Voltshow demo playback with guided step controls
+  - src: /images/projects/voltshow/4.png
+    alt: Voltshow product page on the VoltAlfa website
+href: 'https://show.voltalfa.dev'
+featured: false
+order: 11
+draft: false
+---
+
+import ImageCarousel from '/src/components/ImageCarousel.astro';
+
+<ImageCarousel
+	images={[
+		{ src: '/images/projects/voltshow/1.png', alt: 'Voltshow landing page for creating interactive product demos' },
+		{ src: '/images/projects/voltshow/2.png', alt: 'Interactive ZapaPOS demo presented in the Voltshow viewer' },
+		{ src: '/images/projects/voltshow/3.png', alt: 'Voltshow demo playback with guided step controls' },
+		{ src: '/images/projects/voltshow/4.png', alt: 'Voltshow product page on the VoltAlfa website' },
+	]}
+	aspectRatio="16 / 10"
+	objectFit="contain"
+>
+	Landing page, public interactive viewer, playback and product presentation.
+</ImageCarousel>
+
+Voltshow makes product walkthroughs easier to explain, share and reuse.
