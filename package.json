@@ -8,6 +8,7 @@
     "preview": "astro preview",
     "start": "node ./dist/server/entry.mjs",
     "admin:setup": "node ./scripts/admin-setup.mjs",
+    "admin:check": "node ./scripts/check-admin.mjs",
     "astro": "astro"
   },
   "dependencies": {

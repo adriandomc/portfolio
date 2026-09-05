@@ -98,6 +98,11 @@ export async function getBinaryFile(
   return getBinaryFileUpstream(filePath);
 }
 
+/**
+ * `sha` is accepted for call-site symmetry with the GitHub API but not used:
+ * writes land in staging, and the lost-update check happens once at publish
+ * time by diffing the staged paths against the branch head.
+ */
 export async function commitFile(args: {
   file: CommitFile;
   message: string;

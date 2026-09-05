@@ -56,6 +56,47 @@ export type RepoChange =
       delete: true;
     };
 
+/**
+ * Commit sha the branch currently points at, or `"local"` in dry-run.
+ * Used to detect upstream drift between staging a change and publishing it.
+ */
+export async function getHeadShaUpstream(): Promise<string> {
+  const cfg = adminConfig();
+  if (cfg.dryRun) return "local";
+  const { owner, repo } = repoParts();
+  const ref = await octokit().git.getRef({
+    owner,
+    repo,
+    ref: `heads/${cfg.githubBranch}`,
+  });
+  return ref.data.object.sha;
+}
+
+/**
+ * Every blob path in a commit's tree mapped to its sha, in one API call.
+ * Cheaper than fetching each staged file individually to compare it.
+ */
+export async function getTreeShasUpstream(
+  commitSha: string,
+): Promise<Map<string, string>> {
+  const cfg = adminConfig();
+  const out = new Map<string, string>();
+  if (cfg.dryRun) return out;
+  const { owner, repo } = repoParts();
+  const res = await octokit().git.getTree({
+    owner,
+    repo,
+    tree_sha: commitSha,
+    recursive: "1",
+  });
+  for (const entry of res.data.tree) {
+    if (entry.type === "blob" && entry.path && entry.sha) {
+      out.set(entry.path, entry.sha);
+    }
+  }
+  return out;
+}
+
 export async function listDirUpstream(dirPath: string): Promise<RepoFile[]> {
   const cfg = adminConfig();
   if (cfg.dryRun) return listDirLocal(dirPath);

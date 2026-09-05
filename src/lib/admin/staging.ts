@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import type { RepoChange } from "./github-upstream";
+import { getHeadShaUpstream, type RepoChange } from "./github-upstream";
 
 export interface StagedChange {
   path: string;
@@ -21,6 +21,14 @@ export interface StagedTransaction {
 export interface StagingManifest {
   version: 1;
   transactions: StagedTransaction[];
+  /**
+   * Upstream commit these changes were staged on top of. Publish compares it
+   * against the branch head to detect edits made outside the admin (e.g. a
+   * push from an IDE) before overwriting them. Absent when the lookup failed,
+   * which degrades to the old blind-overwrite behaviour rather than blocking
+   * the save.
+   */
+  baseCommitSha?: string;
 }
 
 export interface StagingDiff {
@@ -56,6 +64,9 @@ function blobPath(blobRef: string): string {
   return path.join(blobsDir(), blobRef);
 }
 
+// ponytail: in-process lock, correct for the single container this runs in.
+// Two replicas would interleave manifest writes — move to a lockfile (or a
+// real queue) if the admin is ever scaled out.
 let lock: Promise<void> = Promise.resolve();
 async function withLock<T>(fn: () => Promise<T>): Promise<T> {
   const prev = lock;
@@ -132,6 +143,13 @@ export async function stageBatch(args: {
   if (args.changes.length === 0) return { transactionId: "" };
   return withLock(async () => {
     const manifest = await readManifest();
+    if (manifest.transactions.length === 0 || !manifest.baseCommitSha) {
+      try {
+        manifest.baseCommitSha = await getHeadShaUpstream();
+      } catch (err) {
+        console.warn("[staging] could not record base commit sha:", err);
+      }
+    }
     const txId = randomUUID();
     const transaction: StagedTransaction = {
       id: txId,
@@ -218,6 +236,10 @@ export async function getStagingState(): Promise<{
     }
   }
   return { additions, deletions };
+}
+
+export async function getBaseCommitSha(): Promise<string | undefined> {
+  return (await readManifest()).baseCommitSha;
 }
 
 export async function getStagingDiff(): Promise<StagingDiff> {
