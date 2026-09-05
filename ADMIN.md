@@ -1,7 +1,8 @@
 # Admin
 
 Self-hosted post editor at `/admin`. Authenticates with password + TOTP,
-commits MDX directly to this repo via the GitHub API.
+stages MDX changes server-side, then publishes them to this repo as a single
+commit via the GitHub API.
 
 ## First-time setup
 
@@ -37,9 +38,37 @@ Saves write to your local `src/content/...` instead of committing to GitHub.
 - Frontmatter form for title/description/date/tags/draft.
 - Insert custom MDX components (`ImageCarousel`, `Figure`, `Card`, `Badge`,
   `Button`, `Table`) as visual blocks; click a block to edit its props.
-- Image uploads in editor commit to `public/images/<folder>/...` in the repo.
-- Saving commits the MDX file to `main`; Coolify rebuilds and deploys.
+- Image uploads in editor write to `public/images/<folder>/...`.
 - Toggle "Draft" in the form to publish/unpublish without deleting the file.
+
+## Staging and publishing
+
+Saving does **not** commit. Every admin write (posts, media, reordering) lands
+in a server-side staging area first; the bar at the top of `/admin` lists what
+is pending and lets you discard a single batch or all of it. Reads are overlaid
+on top of GitHub, so the admin shows staged content as if it were live.
+
+"Publish" bundles everything into **one** commit on `main` via the Git Data
+API, then clears staging. Coolify sees the push and redeploys.
+
+Two guards run before that commit:
+
+- **Lost-update check.** The commit the changes were staged on is recorded in
+  the manifest. If any staged path moved on `main` since then — a push from
+  your IDE, say — publish returns `409` and names the files instead of
+  overwriting them. Discard and redo the edit.
+- **Already-applied check.** If the branch head already matches every staged
+  change (a publish whose response was lost), staging is cleared without a
+  duplicate commit.
+
+Frontmatter is validated against `src/content.schemas.ts` — the same schemas
+the content collections use — so a bad save is rejected here rather than
+breaking the next build. Keys the editor has no field for (`summary`, `role`,
+`year`, …) are merged forward, not dropped.
+
+> **Production requirement:** the staging area lives on disk (`ADMIN_STAGING_DIR`,
+> default `<cwd>/.admin-staging`). Mount it as a persistent volume in Coolify,
+> or every restart silently discards unpublished work. See `.env.example`.
 
 ## Security
 
