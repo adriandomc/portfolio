@@ -12,6 +12,7 @@ import {
 } from "../../../../../lib/admin/posts";
 import { tiptapToMdx } from "../../../../../lib/admin/mdx/serialize";
 import type { TiptapDoc } from "../../../../../lib/admin/mdx/types";
+import { contentSchemas } from "../../../../../content.schemas";
 
 export const prerender = false;
 
@@ -131,18 +132,35 @@ export const PUT: APIRoute = async ({ params, request }) => {
     );
   }
 
-  if (col === "projects" && !payload.isNew) {
+  // Merge over the file's existing frontmatter so keys the editor doesn't
+  // manage (summary, role, year, …) survive a save.
+  let base: Record<string, unknown> = {};
+  if (!payload.isNew) {
     try {
-      const existing = await getPost("projects", chosenSlug);
+      const existing = await getPost(col, chosenSlug);
       if (existing) {
-        const existingProj = existing.frontmatter as ProjectFrontmatter;
-        const proj = fmResult.value as ProjectFrontmatter;
-        proj.order = existingProj.order;
-        proj.featured = Boolean(existingProj.featured);
+        base = existing.raw;
+        if (col === "projects") {
+          // Ordering is owned by the projects table, not this form.
+          const existingProj = existing.frontmatter as ProjectFrontmatter;
+          const proj = fmResult.value as ProjectFrontmatter;
+          proj.order = existingProj.order;
+          proj.featured = Boolean(existingProj.featured);
+        }
       }
     } catch (err) {
-      console.warn("Failed to preserve project order/featured:", err);
+      console.warn("Failed to load existing post for merge:", err);
     }
+  }
+
+  // Same schema the content collections validate against at build time, so a
+  // bad save is rejected here instead of breaking the next deploy.
+  const parsed = contentSchemas[col].safeParse({ ...base, ...fmResult.value });
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    return jsonError(
+      `Frontmatter invalid: ${issue.path.join(".") || "(root)"} — ${issue.message}`,
+    );
   }
 
   try {
@@ -152,6 +170,7 @@ export const PUT: APIRoute = async ({ params, request }) => {
       frontmatter: fmResult.value,
       body,
       sha: payload.sha || undefined,
+      base,
     });
     return jsonOk({
       sha: result.sha,

@@ -54,6 +54,13 @@ export interface PostSummary {
 export interface PostDetail extends PostSummary {
   body: string;
   frontmatter: Frontmatter;
+  /**
+   * Untouched frontmatter as read from the file. `frontmatter` is normalised
+   * and only carries the keys the admin UI knows about, so saves merge over
+   * this to avoid dropping fields the editor doesn't manage (summary, role,
+   * year, …).
+   */
+  raw: Record<string, unknown>;
   sha: string;
 }
 
@@ -117,6 +124,7 @@ export function emptyPost(
     tags: [],
     body: "",
     frontmatter: defaultsFor(collection),
+    raw: {},
     sha: "",
   };
 }
@@ -236,6 +244,7 @@ export async function getPost(
     date: collection === "blog" ? (fm as BlogFrontmatter).date : undefined,
     body: parsed.content,
     frontmatter: fm,
+    raw: parsed.data as Record<string, unknown>,
     sha: file.sha,
   };
 }
@@ -244,8 +253,9 @@ export function serializePost(
   collection: Collection,
   fm: Frontmatter,
   body: string,
+  base: Record<string, unknown> = {},
 ): string {
-  const data: Record<string, unknown> = { ...fm };
+  const data: Record<string, unknown> = { ...base, ...fm };
   if (collection === "blog") {
     const blog = fm as BlogFrontmatter;
     if (!blog.image) delete data.image;
@@ -256,6 +266,11 @@ export function serializePost(
     if (!proj.images || proj.images.length === 0) delete data.images;
   }
   if (!fm.tags || fm.tags.length === 0) delete data.tags;
+  // `{...base, ...fm}` reintroduces keys the form left blank as `undefined`;
+  // js-yaml would either throw or emit `null` for those.
+  for (const key of Object.keys(data)) {
+    if (data[key] === undefined) delete data[key];
+  }
   return matter.stringify(body.endsWith("\n") ? body : `${body}\n`, data);
 }
 
@@ -265,9 +280,16 @@ export async function savePost(args: {
   frontmatter: Frontmatter;
   body: string;
   sha?: string;
+  /** Existing raw frontmatter to merge over; preserves unmanaged keys. */
+  base?: Record<string, unknown>;
 }): Promise<{ sha: string; commitSha: string }> {
   const filePath = pathFor(args.collection, args.slug);
-  const content = serializePost(args.collection, args.frontmatter, args.body);
+  const content = serializePost(
+    args.collection,
+    args.frontmatter,
+    args.body,
+    args.base,
+  );
   const message = `content(${args.collection}): ${args.sha ? "update" : "create"} ${args.slug}`;
   return commitFile({
     file: { path: filePath, content, encoding: "utf-8" },
